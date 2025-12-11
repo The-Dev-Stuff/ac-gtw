@@ -1,0 +1,14 @@
+tmp/
+.env
+.venv
+
+*__pycache__
+
+# Files used locally for testing with credentials
+auth/get_client_secret.py
+auth/get_cognito_token.py
+
+
+.idea/
+.vscode/
+.DS_Store
