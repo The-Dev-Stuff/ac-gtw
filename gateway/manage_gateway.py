@@ -70,6 +70,22 @@ def create_agentcore_gateway_role(role_name: str, region: str = None):
                     "sts:GetCallerIdentity"
                 ],
                 "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore:GetWorkloadAccessToken",
+                    "bedrock-agentcore:InvokeCredentialProvider",
+                    "bedrock-agentcore:GetResourceApiKey"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue"
+                ],
+                "Resource": "*"
             }
         ]
     }
@@ -166,6 +182,69 @@ def create_or_get_gateway(gateway_name: str, auth_config: dict, description: str
 
 
 
+def create_or_get_gateway_no_auth(gateway_name: str, role_arn: str, description: str = None):
+    """
+    Creates a new gateway without authentication or retrieves an existing one by name.
+
+    Args:
+        gateway_name: Name of the gateway
+        role_arn: ARN of the IAM role for the gateway
+        description: Optional description for the gateway
+
+    Returns:
+        dict with gateway_id and gateway_url
+    """
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print(f"Creating/retrieving gateway (no auth): {gateway_name}...")
+    try:
+        create_response = gateway_client.create_gateway(
+            name=gateway_name,
+            roleArn=role_arn,
+            protocolType="MCP",
+            authorizerType="NONE",
+            description=description or "AgentCore Gateway without authentication"
+        )
+        print("✓ Gateway created (no auth).")
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConflictException":
+            # Gateway name exists; find it by listing
+            print("Gateway name exists; retrieving existing gateway...")
+            gw_list = gateway_client.list_gateways().get("gateways", [])
+            create_response = None
+            for g in gw_list:
+                if g["name"] == gateway_name:
+                    create_response = g
+                    break
+            if create_response is None:
+                raise ValueError(f"Gateway '{gateway_name}' conflict but not found in list")
+            print("✓ Retrieved existing gateway.")
+        else:
+            raise
+
+    # Print all gateway info
+    print("Gateway info:")
+    for k, v in create_response.items():
+        print(f"  {k}: {v}")
+
+    # Extract gateway info
+    gateway_id = create_response.get("gatewayId")
+    gateway_url = create_response.get("gatewayUrl")
+
+    if not gateway_id or not gateway_url:
+        raise ValueError(f"Invalid gateway response: {create_response}")
+
+    print(f"Gateway ID: {gateway_id}")
+    print(f"Gateway URL: {gateway_url}")
+
+    return {
+        "gateway_id": gateway_id,
+        "gateway_url": gateway_url,
+        "gateway_name": gateway_name
+    }
+
+
 def delete_gateway(gateway_id: str):
     """
     Deletes a gateway by ID.
@@ -205,6 +284,28 @@ def setup_gateway(gateway_name: str, auth_config: dict, description: str = None)
     print(f"Role ARN: {auth_config['role_arn']}")
 
     gateway_info = create_or_get_gateway(gateway_name, auth_config, description)
+    return gateway_info
+
+
+def setup_gateway_no_auth(gateway_name: str, description: str = None):
+    """
+    Creates or retrieves a gateway without authentication.
+    Creates the IAM role and gateway.
+
+    Args:
+        gateway_name: Name of the gateway
+        description: Optional gateway description
+
+    Returns:
+        dict with gateway_id, gateway_url, and gateway_name
+    """
+    # Create IAM role for gateway
+    print("Creating or reusing IAM role for gateway...")
+    gateway_role = create_agentcore_gateway_role(ROLE_NAME, region=AWS_REGION)
+    role_arn = gateway_role["Role"]["Arn"]
+    print(f"Role ARN: {role_arn}")
+
+    gateway_info = create_or_get_gateway_no_auth(gateway_name, role_arn, description)
     return gateway_info
 
 

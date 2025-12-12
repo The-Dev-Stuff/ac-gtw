@@ -2,7 +2,33 @@
 
 ## Sample requests
 
-### Create Gateway
+## Create Gateways
+
+### Gateway with no Auth
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/gateways/no-auth' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "gateway_name": "SampleGatewaySecond",
+  "description": "A sample AgentCore Gateway with no auth"
+}'
+```
+
+Response
+``` json
+{
+  "status": "success",
+  "gateway_id": "samplegatewaysecond-abc123def4",
+  "gateway_url": "https://samplegatewaysecond-abc123def4.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
+  "gateway_name": "SampleGatewaySecond",
+  "message": "Gateway 'SampleGatewaySecond' successfully created without authentication"
+}
+```
+
+
+### Gateway with Cognito Auth
 ```bash
 curl -X 'POST' \
   'http://localhost:8000/gateways' \

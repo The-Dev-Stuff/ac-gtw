@@ -66,11 +66,26 @@ class CreateToolFromApiInfoRequest(BaseModel):
     api_info: ApiInfo
     auth: Optional[Auth] = None
 
+
+class CreateToolFromSpecRequest(BaseModel):
+    """Request to create a tool from an inline OpenAPI spec"""
+    gateway_id: str
+    tool_name: str
+    openapi_spec: dict
+    auth: Optional[Auth] = None
+
+
 class CreateGatewayRequest(BaseModel):
     """Request to create a gateway"""
     gateway_name: str
     description: Optional[str] = None
     auth_config: CognitoAuthConfig
+
+
+class CreateGatewayNoAuthRequest(BaseModel):
+    """Request to create a gateway without authentication"""
+    gateway_name: str
+    description: Optional[str] = None
 
 
 class CreateGatewayResponse(BaseModel):

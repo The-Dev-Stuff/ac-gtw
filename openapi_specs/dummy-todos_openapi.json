@@ -17,17 +17,9 @@
         "operationId": "dummy-todos__todos",
         "responses": {
           "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "Successful response"
           }
-        },
-        "description": "Get all todos from DummyJSON API"
+        }
       }
     }
   }
