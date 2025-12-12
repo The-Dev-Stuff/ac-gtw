@@ -1,0 +1,180 @@
+{
+	"info": {
+		"_postman_id": "9ed05567-ccec-496b-be10-1c17cd65e588",
+		"name": "AgentCore Gateway",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "1170733"
+	},
+	"item": [
+		{
+			"name": "Create Tool from API Info",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"gateway_id\": \"testmcpservergateway-ocunydee97\",\n  \"tool_name\": \"dummy-todos\",\n  \"api_info\": {\n    \"method\": \"GET\",\n    \"url\": \"https://dummyjson.com/todos\",\n    \"description\": \"Get all todos from DummyJSON API\"\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/tools/from-api-info",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"tools",
+						"from-api-info"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Tool from OpenAPI spec url",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"gateway_id\": \"testmcpservergateway-ocunydee97\",\n  \"tool_name\": \"nasa-mars-api\",\n  \"openapi_spec_url\": \"https://raw.githubusercontent.com/awslabs/amazon-bedrock-agentcore-samples/refs/heads/main/01-tutorials/02-AgentCore-gateway/02-transform-apis-into-mcp-tools/01-transform-openapi-into-mcp-tools/openapi-specs/nasa_mars_insights_openapi.json\",\n  \"auth\": {\n    \"type\": \"api_key\",\n    \"provider_name\": \"NasaInsightsAPIKey\",\n    \"config\": {\n      \"api_key\": \"bsdOH4JVYn3VMyKZs75Wkchi4YjA39TKVw7TNuTz\",\n      \"api_key_param_name\": \"api_key\",\n      \"api_key_location\": \"QUERY_PARAMETER\"\n    }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/tools/from-url",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"tools",
+						"from-url"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Tool from inline OpenAPI Spec",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"gateway_id\": \"samplegatewaysecond-s8qkj5fs2n\",\n    \"tool_name\": \"testing-todos-three\",\n    \"openapi_spec\": {\n    \"openapi\": \"3.0.3\",\n    \"info\": {\n        \"title\": \"test-sample-todos-three\",\n        \"description\": \"Sample API with todos, samples, and test-data endpoints\",\n        \"version\": \"1.0.0\"\n    },\n    \"servers\": [\n        {\n            \"url\": \"https://dummyjson.com\"\n        }\n    ],\n    \"paths\": {\n        \"/samples\": {\n            \"get\": {\n                \"summary\": \"Get all samples\",\n                \"operationId\": \"get-samples\",\n                \"responses\": {\n                    \"200\": {\n                        \"description\": \"Successful response\"\n                    }\n                }\n            },\n            \"put\": {\n                \"summary\": \"Update a sample\",\n                \"operationId\": \"update-sample\",\n                \"responses\": {\n                    \"200\": {\n                        \"description\": \"Sample updated successfully\"\n                    }\n                }\n            }\n        },\n        \"/test-data\": {\n            \"get\": {\n                \"summary\": \"Get test data\",\n                \"operationId\": \"get-test-data\",\n                \"responses\": {\n                    \"200\": {\n                        \"description\": \"Successful response\"\n                    }\n                }\n            }\n        }\n    }\n}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/tools/from-spec",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"tools",
+						"from-spec"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Greate Gateway No Auth",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"gateway_name\": \"SampleGatewaySecond\",\n  \"description\": \"A sample AgentCore Gateway with no auth\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/gateways/no-auth",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"gateways",
+						"no-auth"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Target",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8000/gateways/samplegatewaysecond-s8qkj5fs2n/tools/QMIDA0PUII",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"gateways",
+						"samplegatewaysecond-s8qkj5fs2n",
+						"tools",
+						"QMIDA0PUII"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
