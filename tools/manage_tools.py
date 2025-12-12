@@ -100,19 +100,20 @@ def create_gateway_target(
     gateway_id: str,
     target_name: str,
     openapi_s3_uri: str,
-    api_key_credential_provider_arn: str = None,
+    api_key_credential_provider_arn: str,
     api_key_param_name: str = "api_key",
     api_key_location: str = "QUERY_PARAMETER",
     description: str = None
 ):
     """
-    Creates a gateway target (tool) with OpenAPI spec and optional credential injection.
+    Creates a gateway target (tool) with OpenAPI spec and credential injection.
+    OpenAPI schema targets require either OAUTH or API_KEY credential provider.
 
     Args:
         gateway_id: ID of the gateway
         target_name: Name of the target
         openapi_s3_uri: S3 URI of the OpenAPI spec
-        api_key_credential_provider_arn: Optional ARN of credential provider for API key injection
+        api_key_credential_provider_arn: ARN of credential provider for API key injection (required)
         api_key_param_name: Parameter name for the API key (e.g., "api_key", "Authorization")
         api_key_location: Where to inject the key: "QUERY_PARAMETER" or "HEADER"
         description: Optional target description
@@ -136,21 +137,20 @@ def create_gateway_target(
         }
     }
 
-    # Build credential provider configuration if provided
-    credential_configs = None
-    if api_key_credential_provider_arn:
-        credential_configs = [
-            {
-                "credentialProviderType": "API_KEY",
-                "credentialProvider": {
-                    "apiKeyCredentialProvider": {
-                        "credentialParameterName": api_key_param_name,
-                        "providerArn": api_key_credential_provider_arn,
-                        "credentialLocation": api_key_location
-                    }
+    # Build credential provider configuration
+    # OpenAPI schema targets only support OAUTH and API_KEY types
+    credential_configs = [
+        {
+            "credentialProviderType": "API_KEY",
+            "credentialProvider": {
+                "apiKeyCredentialProvider": {
+                    "credentialParameterName": api_key_param_name,
+                    "providerArn": api_key_credential_provider_arn,
+                    "credentialLocation": api_key_location
                 }
             }
-        ]
+        }
+    ]
 
     # Create the target
     try:
@@ -204,13 +204,26 @@ def add_tool_to_gateway(
     # Step 1: Upload OpenAPI spec to S3
     openapi_s3_uri = upload_openapi_to_s3(openapi_file_path, s3_bucket)
 
-    # Step 2: Create credential provider if API key provided
-    api_key_credential_provider_arn = None
+    # Step 2: Create credential provider
+    # OpenAPI schema targets require either OAUTH or API_KEY - GATEWAY_IAM_ROLE is not supported
     if api_key and api_key_provider_name:
+        # Use provided API key
         api_key_credential_provider_arn = create_or_get_api_key_credential_provider(
             api_key_provider_name,
             api_key
         )
+    else:
+        # For public APIs, create a placeholder API key credential provider
+        # The placeholder key won't be used by the target API but satisfies AWS requirements
+        placeholder_provider_name = f"{target_name}-placeholder-apikey"
+        placeholder_api_key = "placeholder-not-used"
+        api_key_credential_provider_arn = create_or_get_api_key_credential_provider(
+            placeholder_provider_name,
+            placeholder_api_key
+        )
+        # Use a header that won't interfere with the actual API
+        api_key_param_name = "X-Placeholder-Auth"
+        api_key_location = "HEADER"
 
     # Step 3: Create the gateway target
     response = create_gateway_target(

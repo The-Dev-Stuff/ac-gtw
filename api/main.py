@@ -3,16 +3,20 @@ main.py
 FastAPI application for managing gateway tools.
 """
 import os
+import sys
 import json
 from pathlib import Path
 import requests
+
+# Add parent directory to path for direct execution
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
 from gateway import setup_gateway
 from tools import add_tool_to_gateway
 from tools.openapi_generator import generate_openapi_spec
-from .types import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest
+from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest
 
 # CONFIG
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
