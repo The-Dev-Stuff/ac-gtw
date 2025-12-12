@@ -48,6 +48,24 @@ class CreateToolFromUrlRequest(BaseModel):
     openapi_spec_url: str
     auth: Auth
 
+
+class ApiInfo(BaseModel):
+    """API information for manual tool creation"""
+    method: str
+    url: str
+    query_params: Optional[dict] = None
+    headers: Optional[dict] = None
+    body_schema: Optional[dict] = None
+    description: Optional[str] = None
+
+
+class CreateToolFromApiInfoRequest(BaseModel):
+    """Request to create a tool from manual API information"""
+    gateway_id: str
+    tool_name: str
+    api_info: ApiInfo
+    auth: Optional[Auth] = None
+
 class CreateGatewayRequest(BaseModel):
     """Request to create a gateway"""
     gateway_name: str

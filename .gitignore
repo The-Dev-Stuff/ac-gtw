@@ -1,12 +1,14 @@
 tmp/
 .env
 .venv
+TODO.md
 
 *__pycache__
 
 # Files used locally for testing with credentials
 auth/get_client_secret.py
 auth/get_cognito_token.py
+auth/get_token.sh
 
 
 .idea/

@@ -8,6 +8,7 @@ from .manage_tools import (
     upload_openapi_to_s3,
     create_or_get_api_key_credential_provider
 )
+from .openapi_generator import generate_openapi_spec
 
 __all__ = [
     "add_tool_to_gateway",

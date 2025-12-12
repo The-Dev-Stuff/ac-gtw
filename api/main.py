@@ -11,7 +11,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
 from gateway import setup_gateway
 from tools import add_tool_to_gateway
-from .types import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest
+from tools.openapi_generator import generate_openapi_spec
+from .types import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest
 
 # CONFIG
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
@@ -231,6 +232,60 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
         )
     except Exception as e:
         print(f"Error creating tool from URL: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create tool: {str(e)}"
+        )
+
+
+@app.post("/tools/from-api-info", response_model=CreateToolResponse)
+async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
+    """Create a new tool on the gateway from manual API information"""
+    try:
+        # Generate OpenAPI spec from API info
+        spec_json = generate_openapi_spec(
+            tool_name=request.tool_name,
+            method=request.api_info.method,
+            url=request.api_info.url,
+            query_params=request.api_info.query_params,
+            headers=request.api_info.headers,
+            body_schema=request.api_info.body_schema,
+            description=request.api_info.description
+        )
+
+        # Save to local directory
+        spec_filename = f"{request.tool_name}_openapi.json"
+        spec_filepath = OPENAPI_SPECS_DIR / spec_filename
+
+        with open(spec_filepath, "w") as f:
+            json.dump(spec_json, f, indent=2)
+
+        print(f"✓ Generated OpenAPI spec saved to {spec_filepath}")
+
+        # Add tool to gateway
+        add_tool_to_gateway(
+            gateway_id=request.gateway_id,
+            target_name=request.tool_name,
+            openapi_file_path=str(spec_filepath),
+            api_key=request.auth.config.api_key if request.auth and request.auth.type == "api_key" else None,
+            api_key_provider_name=request.auth.provider_name if request.auth and request.auth.type == "api_key" else None,
+            api_key_param_name=request.auth.config.api_key_param_name if request.auth else "api_key",
+            api_key_location=request.auth.config.api_key_location if request.auth else "QUERY_PARAMETER",
+            description=request.api_info.description
+        )
+
+        return CreateToolResponse(
+            status="success",
+            tool_name=request.tool_name,
+            gateway_id=request.gateway_id,
+            openapi_spec_path=str(spec_filepath),
+            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating tool from API info: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create tool: {str(e)}"
