@@ -1,0 +1,34 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "dummy-todos",
+    "description": "Get all todos from DummyJSON API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://dummyjson.com"
+    }
+  ],
+  "paths": {
+    "/todos": {
+      "get": {
+        "summary": "Get all todos from DummyJSON API",
+        "operationId": "dummy-todos__todos",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "description": "Get all todos from DummyJSON API"
+      }
+    }
+  }
+}
