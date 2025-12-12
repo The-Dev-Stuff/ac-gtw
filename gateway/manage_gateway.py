@@ -186,6 +186,8 @@ def create_or_get_gateway_no_auth(gateway_name: str, role_arn: str, description:
     """
     Creates a new gateway without authentication or retrieves an existing one by name.
 
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateGateway.html
+
     Args:
         gateway_name: Name of the gateway
         role_arn: ARN of the IAM role for the gateway

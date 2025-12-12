@@ -15,8 +15,9 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
 from gateway import setup_gateway, setup_gateway_no_auth
 from tools import add_tool_to_gateway
+from tools.manage_tools import delete_gateway_target
 from tools.openapi_generator import generate_openapi_spec
-from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest
+from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, DeleteToolResponse
 
 # CONFIG
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
@@ -172,7 +173,7 @@ async def create_tool(
         print(f"✓ OpenAPI spec saved to {spec_filepath}")
 
         # Call the manage_tools function to add tool to gateway
-        add_tool_to_gateway(
+        result = add_tool_to_gateway(
             gateway_id=gateway_id,
             target_name=tool_name,
             openapi_file_path=str(spec_filepath),
@@ -188,7 +189,18 @@ async def create_tool(
             tool_name=tool_name,
             gateway_id=gateway_id,
             openapi_spec_path=str(spec_filepath),
-            message=f"Tool '{tool_name}' successfully created and registered on gateway {gateway_id}"
+            message=f"Tool '{tool_name}' successfully created and registered on gateway {gateway_id}",
+            # AWS SDK response fields
+            target_id=result.get("targetId"),
+            gateway_arn=result.get("gatewayArn"),
+            description=result.get("description"),
+            created_at=result.get("createdAt"),
+            updated_at=result.get("updatedAt"),
+            last_synchronized_at=result.get("lastSynchronizedAt"),
+            target_status=result.get("status"),
+            status_reasons=result.get("statusReasons"),
+            target_configuration=result.get("targetConfiguration"),
+            credential_provider_configurations=result.get("credentialProviderConfigurations")
         )
 
     except HTTPException:
@@ -235,7 +247,7 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
         print(f"✓ OpenAPI spec saved to {spec_filepath}")
 
         # Add tool to gateway
-        add_tool_to_gateway(
+        result = add_tool_to_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
             openapi_file_path=str(spec_filepath),
@@ -251,7 +263,18 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
             openapi_spec_path=str(spec_filepath),
-            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}"
+            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
+            # AWS SDK response fields
+            target_id=result.get("targetId"),
+            gateway_arn=result.get("gatewayArn"),
+            description=result.get("description"),
+            created_at=result.get("createdAt"),
+            updated_at=result.get("updatedAt"),
+            last_synchronized_at=result.get("lastSynchronizedAt"),
+            target_status=result.get("status"),
+            status_reasons=result.get("statusReasons"),
+            target_configuration=result.get("targetConfiguration"),
+            credential_provider_configurations=result.get("credentialProviderConfigurations")
         )
 
     except HTTPException:
@@ -295,7 +318,7 @@ async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
         print(f"✓ Generated OpenAPI spec saved to {spec_filepath}")
 
         # Add tool to gateway
-        add_tool_to_gateway(
+        result = add_tool_to_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
             openapi_file_path=str(spec_filepath),
@@ -311,7 +334,18 @@ async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
             openapi_spec_path=str(spec_filepath),
-            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}"
+            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
+            # AWS SDK response fields
+            target_id=result.get("targetId"),
+            gateway_arn=result.get("gatewayArn"),
+            description=result.get("description"),
+            created_at=result.get("createdAt"),
+            updated_at=result.get("updatedAt"),
+            last_synchronized_at=result.get("lastSynchronizedAt"),
+            target_status=result.get("status"),
+            status_reasons=result.get("statusReasons"),
+            target_configuration=result.get("targetConfiguration"),
+            credential_provider_configurations=result.get("credentialProviderConfigurations")
         )
 
     except HTTPException:
@@ -347,7 +381,7 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
         print(f"✓ OpenAPI spec saved to {spec_filepath}")
 
         # Add tool to gateway
-        add_tool_to_gateway(
+        result = add_tool_to_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
             openapi_file_path=str(spec_filepath),
@@ -363,7 +397,18 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
             openapi_spec_path=str(spec_filepath),
-            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}"
+            message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
+            # AWS SDK response fields
+            target_id=result.get("targetId"),
+            gateway_arn=result.get("gatewayArn"),
+            description=result.get("description"),
+            created_at=result.get("createdAt"),
+            updated_at=result.get("updatedAt"),
+            last_synchronized_at=result.get("lastSynchronizedAt"),
+            target_status=result.get("status"),
+            status_reasons=result.get("statusReasons"),
+            target_configuration=result.get("targetConfiguration"),
+            credential_provider_configurations=result.get("credentialProviderConfigurations")
         )
 
     except HTTPException:
@@ -373,6 +418,46 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create tool: {str(e)}"
+        )
+
+
+@app.delete("/gateways/{gateway_id}/tools/{target_id}", response_model=DeleteToolResponse)
+async def delete_tool(gateway_id: str, target_id: str):
+    """
+    Delete a tool (target) from a gateway.
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        target_id: The unique identifier of the target to delete
+
+    Returns:
+        DeleteToolResponse with deletion status
+    """
+    try:
+        response = delete_gateway_target(
+            gateway_id=gateway_id,
+            target_id=target_id
+        )
+
+        return DeleteToolResponse(
+            status=response.get("status", "DELETING"),
+            target_id=response.get("targetId", target_id),
+            gateway_id=gateway_id,
+            gateway_arn=response.get("gatewayArn"),
+            status_reasons=response.get("statusReasons"),
+            message=f"Tool '{target_id}' deletion initiated on gateway '{gateway_id}'"
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        print(f"Error deleting tool: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete tool: {str(e)}"
         )
 
 

@@ -27,6 +27,49 @@ Response
 }
 ```
 
+**Note**
+The response was updated to return all of the metadata.
+
+```json
+{
+    "status": "success",
+    "tool_name": "testing-todos-three",
+    "gateway_id": "samplegatewaysecond-s8qkj5fs2n",
+    "openapi_spec_path": "openapi_specs/testing-todos-three_openapi.json",
+    "message": "Tool 'testing-todos-three' successfully created and registered on gateway samplegatewaysecond-s8qkj5fs2n",
+    "target_id": "MKSTSMMSSZ",
+    "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateway/samplegatewaysecond-s8qkj5fs2n",
+    "description": "OpenAPI target: testing-todos-three",
+    "created_at": "2025-12-12T21:29:15.171161Z",
+    "updated_at": "2025-12-12T21:29:15.171170Z",
+    "last_synchronized_at": null,
+    "target_status": "CREATING",
+    "status_reasons": null,
+    "target_configuration": {
+        "mcp": {
+            "openApiSchema": {
+                "s3": {
+                    "uri": "s3://agentcore-gateway-targets-openapi-specs-606279327502-us-east-1/testing-todos-three_openapi.json"
+                }
+            }
+        }
+    },
+    "credential_provider_configurations": [
+        {
+            "credentialProviderType": "API_KEY",
+            "credentialProvider": {
+                "apiKeyCredentialProvider": {
+                    "providerArn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:token-vault/default/apikeycredentialprovider/testing-todos-three-placeholder-apikey",
+                    "credentialParameterName": "X-Placeholder-Auth",
+                    "credentialLocation": "HEADER"
+                }
+            }
+        }
+    ]
+}
+
+```
+
 
 ### Gateway with Cognito Auth
 ```bash
@@ -115,7 +158,6 @@ Response
     "message": "Tool 'dummy-todos' successfully created and registered on gateway mycreated-gateway-id123"
 }
 ```
-
 ![img_1.png](img_1.png)
 
 ![img_2.png](img_2.png)
@@ -126,6 +168,30 @@ Response
 ### Create Tool from OpenAPI Spec File Upload
 // TODO
 
+
+## Delete
+
+### Delete a Target 
+Could be 1 or multiple tools associated with a target
+
+Request
+```bash
+curl -X 'DELETE' \
+  'http://localhost:8000/gateways/samplegatewaysecond-s8qkj5fs2n/tools/2RZDASF0LY' \
+  -H 'accept: application/json'
+  ```
+
+Response
+```json
+{
+  "status": "DELETING",
+  "target_id": "2RZDASF0LY",
+  "gateway_id": "samplegatewaysecond-s8qkj5fs2n",
+  "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateway/samplegatewaysecond-s8qkj5fs2n",
+  "status_reasons": null,
+  "message": "Tool '2RZDASF0LY' deletion initiated on gateway 'samplegatewaysecond-s8qkj5fs2n'"
+}
+```
 
 ## Permissions needed (For scenario where api key was used)
 

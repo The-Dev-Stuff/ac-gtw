@@ -71,3 +71,5 @@ Response
 
 It will create a tool for each endpoint/operation id combination in the spec. In this case, 3 tools will be created:
 ![img_4.png](img_4.png)
+
+*When you delete a target, it would delete all 3 tools associated with that target.*

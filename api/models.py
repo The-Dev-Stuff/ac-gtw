@@ -2,7 +2,8 @@
 models.py
 Request/Response models and type definitions for the API
 """
-from typing import Literal, Optional
+from datetime import datetime
+from typing import Any, Literal, Optional
 from pydantic import BaseModel
 
 
@@ -34,12 +35,23 @@ class HealthCheckResponse(BaseModel):
 
 
 class CreateToolResponse(BaseModel):
-    """Response after creating a tool"""
+    """Response after creating a tool - includes all fields from AWS SDK response"""
     status: str
     tool_name: str
     gateway_id: str
     openapi_spec_path: str
     message: str
+    # AWS SDK response fields
+    target_id: Optional[str] = None
+    gateway_arn: Optional[str] = None
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_synchronized_at: Optional[datetime] = None
+    target_status: Optional[str] = None
+    status_reasons: Optional[list[str]] = None
+    target_configuration: Optional[dict[str, Any]] = None
+    credential_provider_configurations: Optional[list[dict[str, Any]]] = None
 
 class CreateToolFromUrlRequest(BaseModel):
     """Request to create a tool from a URL to an OpenAPI spec"""
@@ -94,6 +106,16 @@ class CreateGatewayResponse(BaseModel):
     gateway_id: str
     gateway_url: str
     gateway_name: str
+    message: str
+
+
+class DeleteToolResponse(BaseModel):
+    """Response after deleting a tool"""
+    status: str
+    target_id: str
+    gateway_id: str
+    gateway_arn: Optional[str] = None
+    status_reasons: Optional[list[str]] = None
     message: str
 
 

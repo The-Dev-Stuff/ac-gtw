@@ -109,6 +109,8 @@ def create_gateway_target(
     Creates a gateway target (tool) with OpenAPI spec and credential injection.
     OpenAPI schema targets require either OAUTH or API_KEY credential provider.
 
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateGatewayTarget.html
+
     Args:
         gateway_id: ID of the gateway
         target_name: Name of the target
@@ -119,7 +121,18 @@ def create_gateway_target(
         description: Optional target description
 
     Returns:
-        Target creation response
+        dict: Target creation response containing:
+            - createdAt (str): Timestamp when the target was created
+            - credentialProviderConfigurations (list): Credential provider configurations
+            - description (str): Description of the target
+            - gatewayArn (str): ARN of the gateway
+            - lastSynchronizedAt (str): Last synchronization timestamp
+            - name (str): Name of the target
+            - status (str): Current status (CREATING, UPDATING, READY, FAILED, etc.)
+            - statusReasons (list): Reasons for current status
+            - targetConfiguration (dict): Configuration settings for the target
+            - targetId (str): Unique identifier of the created target
+            - updatedAt (str): Timestamp when target was last updated
     """
     session = boto3.Session(region_name=AWS_REGION)
     gateway_client = session.client("bedrock-agentcore-control")
@@ -162,6 +175,17 @@ def create_gateway_target(
             credentialProviderConfigurations=credential_configs
         )
         print("✓ Gateway target created.")
+
+        # Log key response details
+        print(f"  Target ID: {create_response.get('targetId')}")
+        print(f"  Gateway ARN: {create_response.get('gatewayArn')}")
+        print(f"  Status: {create_response.get('status')}")
+        print(f"  Name: {create_response.get('name')}")
+        if create_response.get('createdAt'):
+            print(f"  Created At: {create_response.get('createdAt')}")
+        if create_response.get('statusReasons'):
+            print(f"  Status Reasons: {create_response.get('statusReasons')}")
+
         return create_response
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConflictException":
@@ -170,6 +194,38 @@ def create_gateway_target(
         else:
             raise
 
+
+
+def delete_gateway_target(gateway_id: str, target_id: str):
+    """
+    Deletes a gateway target (tool) from a gateway.
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_DeleteGatewayTarget.html
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        target_id: The unique identifier of the target to delete
+
+    Returns:
+        Delete response containing gatewayArn, status, statusReasons, targetId
+    """
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print(f"Deleting gateway target: {target_id} from gateway: {gateway_id}")
+
+    try:
+        response = gateway_client.delete_gateway_target(
+            gatewayIdentifier=gateway_id,
+            targetId=target_id
+        )
+        print(f"✓ Gateway target deletion initiated. Status: {response.get('status')}")
+        return response
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "ResourceNotFoundException":
+            raise ValueError(f"Target '{target_id}' not found on gateway '{gateway_id}'")
+        else:
+            raise
 
 
 def add_tool_to_gateway(
@@ -199,7 +255,21 @@ def add_tool_to_gateway(
         description: Optional target description
 
     Returns:
-        Target creation response
+        dict: Target creation response (HTTP 202) containing:
+            - createdAt (str): Timestamp when the target was created
+            - credentialProviderConfigurations (list): Array of CredentialProviderConfiguration
+              objects containing credential provider details and type
+            - description (str): Description of the target (1-200 chars)
+            - gatewayArn (str): The Amazon Resource Name (ARN) of the gateway
+            - lastSynchronizedAt (str): Last synchronization timestamp of the target
+            - name (str): Name of the target (pattern: ([0-9a-zA-Z][-]?){1,100})
+            - status (str): Current status. Valid values: CREATING, UPDATING,
+              UPDATE_UNSUCCESSFUL, DELETING, READY, FAILED, SYNCHRONIZING,
+              SYNCHRONIZE_UNSUCCESSFUL
+            - statusReasons (list): Array of strings explaining current status (0-100 items)
+            - targetConfiguration (dict): Configuration settings for the target (Union object)
+            - targetId (str): Unique identifier of the created target (pattern: [0-9a-zA-Z]{10})
+            - updatedAt (str): Timestamp when target was last updated
     """
     # Step 1: Upload OpenAPI spec to S3
     openapi_s3_uri = upload_openapi_to_s3(openapi_file_path, s3_bucket)

@@ -1,0 +1,46 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "test-sample-todos",
+    "description": "Sample API with todos, samples, and test-data endpoints",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://dummyjson.com"
+    }
+  ],
+  "paths": {
+    "/samples": {
+      "get": {
+        "summary": "Get all samples",
+        "operationId": "get-samples",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a sample",
+        "operationId": "update-sample",
+        "responses": {
+          "200": {
+            "description": "Sample updated successfully"
+          }
+        }
+      }
+    },
+    "/test-data": {
+      "get": {
+        "summary": "Get test data",
+        "operationId": "get-test-data",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    }
+  }
+}
