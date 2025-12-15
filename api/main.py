@@ -13,18 +13,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
-from gateway import setup_gateway, setup_gateway_no_auth
-from tools import add_tool_to_gateway
-from tools.manage_tools import delete_gateway_target
-from tools.openapi_generator import generate_openapi_spec
+from services.gateway.gateway_service import create_agentcore_gateway_role, create_gateway
+from services.s3.s3_service import upload_openapi_spec
+from services.tools.tools_service import create_gateway_target, delete_gateway_target
+from services.credentials.credentials_service import create_or_get_api_key_credential_provider
+from services.openapi_generator.openapi_generator import generate_openapi_spec
 from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, DeleteToolResponse
+from api.validations import validate_auth
 
 # CONFIG
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-OPENAPI_SPECS_DIR = Path("openapi_specs")
-
-# Ensure openapi_specs directory exists
-OPENAPI_SPECS_DIR.mkdir(exist_ok=True)
+OPENAPI_SPECS_BUCKET = os.environ.get("OPENAPI_SPECS_BUCKET")
 
 # Create FastAPI app
 app = FastAPI(
@@ -32,6 +31,64 @@ app = FastAPI(
     description="API for managing OpenAPI tools on AgentCore Gateway",
     version="1.0.0"
 )
+
+
+def _register_tool_with_gateway(
+    gateway_id: str,
+    target_name: str,
+    openapi_s3_uri: str,
+    auth: Auth = None,
+    description: str = None
+) -> dict:
+    """
+    Register a tool with a gateway by creating credential provider and target.
+
+    This is the orchestration logic for the API layer.
+    If auth is provided with api_key, uses real credentials.
+    Otherwise, creates placeholder credentials for public APIs.
+
+    Args:
+        gateway_id: ID of the gateway
+        target_name: Name of the target/tool
+        openapi_s3_uri: S3 URI of the OpenAPI spec
+        auth: Optional Auth object with api_key credentials
+        description: Optional target description
+
+    Returns:
+        dict: Target creation response from AWS
+    """
+    # Determine credential values based on auth object
+    if auth and auth.type == "api_key":
+        # Use provided API key credentials
+        api_key = auth.config.api_key
+        api_key_provider_name = auth.provider_name
+        api_key_param_name = auth.config.api_key_param_name
+        api_key_location = auth.config.api_key_location
+    else:
+        # For public APIs, use placeholder credentials
+        api_key = "placeholder-not-used"
+        api_key_provider_name = f"{target_name}-placeholder-apikey"
+        api_key_param_name = "X-Placeholder-Auth"
+        api_key_location = "HEADER"
+
+    # Create credential provider
+    api_key_credential_provider_arn = create_or_get_api_key_credential_provider(
+        api_key_provider_name,
+        api_key
+    )
+
+    # Create gateway target
+    response = create_gateway_target(
+        gateway_id=gateway_id,
+        target_name=target_name,
+        openapi_s3_uri=openapi_s3_uri,
+        api_key_credential_provider_arn=api_key_credential_provider_arn,
+        api_key_param_name=api_key_param_name,
+        api_key_location=api_key_location,
+        description=description
+    )
+
+    return response
 
 
 @app.get("/", response_model=HealthCheckResponse)
@@ -44,19 +101,31 @@ async def health_check():
 
 
 @app.post("/gateways", response_model=CreateGatewayResponse)
-async def create_gateway(request: CreateGatewayRequest):
+async def create_gateway_endpoint(request: CreateGatewayRequest):
     """Create a new gateway with provided authentication configuration"""
     try:
-        # Build auth config from request
+        # Validate required auth config
+        required_keys = ["client_id", "discovery_url"]
+        for key in required_keys:
+            if key not in request.auth_config.__dict__ or not getattr(request.auth_config, key):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required auth_config field: {key}"
+                )
+
+        # Create IAM role
+        role_arn = create_agentcore_gateway_role("sample-lambdagateway-role-demo")
+
+        # Create or get gateway with JWT auth
         auth_config = {
-            "user_pool_id": request.auth_config.user_pool_id,
             "client_id": request.auth_config.client_id,
             "discovery_url": request.auth_config.discovery_url,
         }
-
-        # Setup gateway with provided auth config
-        gateway_info = setup_gateway(
+        
+        gateway_info = create_gateway(
             gateway_name=request.gateway_name,
+            role_arn=role_arn,
+            is_authenticated=True,
             auth_config=auth_config,
             description=request.description
         )
@@ -80,12 +149,17 @@ async def create_gateway(request: CreateGatewayRequest):
 
 
 @app.post("/gateways/no-auth", response_model=CreateGatewayResponse)
-async def create_gateway_no_auth(request: CreateGatewayNoAuthRequest):
+async def create_gateway_no_auth_endpoint(request: CreateGatewayNoAuthRequest):
     """Create a new gateway without authentication"""
     try:
-        # Setup gateway without auth config
-        gateway_info = setup_gateway_no_auth(
+        # Create IAM role
+        role_arn = create_agentcore_gateway_role("sample-lambdagateway-role-demo")
+
+        # Create or get gateway without auth
+        gateway_info = create_gateway(
             gateway_name=request.gateway_name,
+            role_arn=role_arn,
+            is_authenticated=False,
             description=request.description
         )
 
@@ -107,6 +181,7 @@ async def create_gateway_no_auth(request: CreateGatewayNoAuthRequest):
         )
 
 
+# Creates tool from uploaded OpenAPI spec file
 @app.post("/tools", response_model=CreateToolResponse)
 async def create_tool(
     gateway_id: str = Form(...),
@@ -121,17 +196,7 @@ async def create_tool(
         auth_obj: Auth = Auth.model_validate(json_module.loads(auth))
 
         # Validate auth configuration
-        if auth_obj.type == "api_key":
-            if not auth_obj.config.api_key:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="api_key is required in auth.config when auth.type is 'api_key'"
-                )
-            if not auth_obj.provider_name:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="auth.provider_name is required when auth.type is 'api_key'"
-                )
+        validate_auth(auth_obj)
 
         # Validate OpenAPI spec file
         if not openapi_spec_file.filename:
@@ -163,24 +228,15 @@ async def create_tool(
                 detail="OpenAPI spec must contain 'openapi' or 'swagger' field"
             )
 
-        # Save OpenAPI spec to local directory
-        spec_filename = f"{tool_name}_openapi.json"
-        spec_filepath = OPENAPI_SPECS_DIR / spec_filename
+        # Upload OpenAPI spec to S3 directly (in-memory)
+        s3_uri = upload_openapi_spec(spec_json, tool_name, gateway_id, bucket_name=OPENAPI_SPECS_BUCKET)
 
-        with open(spec_filepath, "w") as f:
-            json.dump(spec_json, f, indent=2)
-
-        print(f"✓ OpenAPI spec saved to {spec_filepath}")
-
-        # Call the manage_tools function to add tool to gateway
-        result = add_tool_to_gateway(
+        # Register tool with gateway
+        result = _register_tool_with_gateway(
             gateway_id=gateway_id,
             target_name=tool_name,
-            openapi_file_path=str(spec_filepath),
-            api_key=auth_obj.config.api_key if auth_obj.type == "api_key" else None,
-            api_key_provider_name=auth_obj.provider_name if auth_obj.type == "api_key" else None,
-            api_key_param_name=auth_obj.config.api_key_param_name,
-            api_key_location=auth_obj.config.api_key_location,
+            openapi_s3_uri=s3_uri,
+            auth=auth_obj,
             description=None
         )
 
@@ -188,7 +244,7 @@ async def create_tool(
             status="success",
             tool_name=tool_name,
             gateway_id=gateway_id,
-            openapi_spec_path=str(spec_filepath),
+            openapi_spec_path=str(s3_uri),
             message=f"Tool '{tool_name}' successfully created and registered on gateway {gateway_id}",
             # AWS SDK response fields
             target_id=result.get("targetId"),
@@ -213,10 +269,14 @@ async def create_tool(
         )
 
 
+# Creates tool from uploaded OpenAPI spec file url
 @app.post("/tools/from-url", response_model=CreateToolResponse)
 async def create_tool_from_url(request: CreateToolFromUrlRequest):
     """Create a new tool on the gateway from an OpenAPI spec URL"""
     try:
+        # Validate auth configuration
+        validate_auth(request.auth)
+
         # Download OpenAPI spec from URL
         print(f"Downloading OpenAPI spec from {request.openapi_spec_url}")
         response = requests.get(request.openapi_spec_url, timeout=10)
@@ -237,24 +297,15 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
                 detail="OpenAPI spec must contain 'openapi' or 'swagger' field"
             )
 
-        # Save to local directory
-        spec_filename = f"{request.tool_name}_openapi.json"
-        spec_filepath = OPENAPI_SPECS_DIR / spec_filename
+        # Upload to S3 and register tool with gateway
+        s3_uri = upload_openapi_spec(spec_json, request.tool_name, request.gateway_id, bucket_name=OPENAPI_SPECS_BUCKET)
 
-        with open(spec_filepath, "w") as f:
-            json.dump(spec_json, f, indent=2)
-
-        print(f"✓ OpenAPI spec saved to {spec_filepath}")
-
-        # Add tool to gateway
-        result = add_tool_to_gateway(
+        # Register tool with gateway
+        result = _register_tool_with_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
-            openapi_file_path=str(spec_filepath),
-            api_key=request.auth.config.api_key if request.auth.type == "api_key" else None,
-            api_key_provider_name=request.auth.provider_name if request.auth.type == "api_key" else None,
-            api_key_param_name=request.auth.config.api_key_param_name,
-            api_key_location=request.auth.config.api_key_location,
+            openapi_s3_uri=s3_uri,
+            auth=request.auth,
             description=None
         )
 
@@ -262,7 +313,7 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
             status="success",
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
-            openapi_spec_path=str(spec_filepath),
+            openapi_spec_path=str(s3_uri),
             message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
             # AWS SDK response fields
             target_id=result.get("targetId"),
@@ -293,10 +344,14 @@ async def create_tool_from_url(request: CreateToolFromUrlRequest):
         )
 
 
+# Creates tool from minimal API info. (System creates an OpenAPI spec on the fly)
 @app.post("/tools/from-api-info", response_model=CreateToolResponse)
 async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
     """Create a new tool on the gateway from manual API information"""
     try:
+        # Validate auth configuration
+        validate_auth(request.auth)
+
         # Generate OpenAPI spec from API info
         spec_json = generate_openapi_spec(
             tool_name=request.tool_name,
@@ -308,24 +363,15 @@ async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
             description=request.api_info.description
         )
 
-        # Save to local directory
-        spec_filename = f"{request.tool_name}_openapi.json"
-        spec_filepath = OPENAPI_SPECS_DIR / spec_filename
+        # Upload generated spec to S3
+        s3_uri = upload_openapi_spec(spec_json, request.tool_name, request.gateway_id, bucket_name=OPENAPI_SPECS_BUCKET)
 
-        with open(spec_filepath, "w") as f:
-            json.dump(spec_json, f, indent=2)
-
-        print(f"✓ Generated OpenAPI spec saved to {spec_filepath}")
-
-        # Add tool to gateway
-        result = add_tool_to_gateway(
+        # Register tool with gateway
+        result = _register_tool_with_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
-            openapi_file_path=str(spec_filepath),
-            api_key=request.auth.config.api_key if request.auth and request.auth.type == "api_key" else None,
-            api_key_provider_name=request.auth.provider_name if request.auth and request.auth.type == "api_key" else None,
-            api_key_param_name=request.auth.config.api_key_param_name if request.auth else "api_key",
-            api_key_location=request.auth.config.api_key_location if request.auth else "QUERY_PARAMETER",
+            openapi_s3_uri=s3_uri,
+            auth=request.auth,
             description=request.api_info.description
         )
 
@@ -333,7 +379,7 @@ async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
             status="success",
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
-            openapi_spec_path=str(spec_filepath),
+            openapi_spec_path=str(s3_uri),
             message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
             # AWS SDK response fields
             target_id=result.get("targetId"),
@@ -358,10 +404,14 @@ async def create_tool_from_api_info(request: CreateToolFromApiInfoRequest):
         )
 
 
+# Creates tool from JSON OpenAPI spec in payload
 @app.post("/tools/from-spec", response_model=CreateToolResponse)
 async def create_tool_from_spec(request: CreateToolFromSpecRequest):
     """Create a new tool on the gateway from an inline OpenAPI spec definition"""
     try:
+        # Validate auth configuration
+        validate_auth(request.auth)
+
         spec_json = request.openapi_spec
 
         # Validate OpenAPI spec
@@ -371,24 +421,15 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
                 detail="OpenAPI spec must contain 'openapi' or 'swagger' field"
             )
 
-        # Save to local directory
-        spec_filename = f"{request.tool_name}_openapi.json"
-        spec_filepath = OPENAPI_SPECS_DIR / spec_filename
+        # Upload the inline spec to S3
+        s3_uri = upload_openapi_spec(spec_json, request.tool_name, request.gateway_id, bucket_name=OPENAPI_SPECS_BUCKET)
 
-        with open(spec_filepath, "w") as f:
-            json.dump(spec_json, f, indent=2)
-
-        print(f"✓ OpenAPI spec saved to {spec_filepath}")
-
-        # Add tool to gateway
-        result = add_tool_to_gateway(
+        # Register tool with gateway
+        result = _register_tool_with_gateway(
             gateway_id=request.gateway_id,
             target_name=request.tool_name,
-            openapi_file_path=str(spec_filepath),
-            api_key=request.auth.config.api_key if request.auth and request.auth.type == "api_key" else None,
-            api_key_provider_name=request.auth.provider_name if request.auth and request.auth.type == "api_key" else None,
-            api_key_param_name=request.auth.config.api_key_param_name if request.auth else "api_key",
-            api_key_location=request.auth.config.api_key_location if request.auth else "QUERY_PARAMETER",
+            openapi_s3_uri=s3_uri,
+            auth=request.auth,
             description=None
         )
 
@@ -396,7 +437,7 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
             status="success",
             tool_name=request.tool_name,
             gateway_id=request.gateway_id,
-            openapi_spec_path=str(spec_filepath),
+            openapi_spec_path=str(s3_uri),
             message=f"Tool '{request.tool_name}' successfully created and registered on gateway {request.gateway_id}",
             # AWS SDK response fields
             target_id=result.get("targetId"),
@@ -421,6 +462,9 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
         )
 
 
+# TODO: Add a method to update a tool or target on the gateway
+
+# Deletes target from gateway - A target can be 1 tool or multiple tools
 @app.delete("/gateways/{gateway_id}/tools/{target_id}", response_model=DeleteToolResponse)
 async def delete_tool(gateway_id: str, target_id: str):
     """
@@ -461,12 +505,13 @@ async def delete_tool(gateway_id: str, target_id: str):
         )
 
 
-@app.get("/tools/health")
-async def tools_health():
+# Health check for tools management
+@app.get("/health")
+async def health():
     """Check if tools management is available"""
     return {
         "status": "ready",
-        "openapi_specs_dir": str(OPENAPI_SPECS_DIR.absolute()),
+        "openapi_specs_bucket": OPENAPI_SPECS_BUCKET,
         "aws_region": AWS_REGION
     }
 
@@ -475,7 +520,7 @@ if __name__ == "__main__":
     import uvicorn
 
     print("Starting AgentCore Gateway Tools API...")
-    print(f"OpenAPI specs directory: {OPENAPI_SPECS_DIR.absolute()}")
+    print(f"OpenAPI specs bucket: {OPENAPI_SPECS_BUCKET}")
     print(f"AWS Region: {AWS_REGION}")
 
     uvicorn.run(
@@ -484,4 +529,3 @@ if __name__ == "__main__":
         port=8000,
         log_level="info"
     )
-
