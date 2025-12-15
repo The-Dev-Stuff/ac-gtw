@@ -11,14 +11,14 @@ import requests
 # Add parent directory to path for direct execution
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, Body
 
 from services.gateways.gateway_service import create_agentcore_gateway_role, create_gateway as create_gateway_service, update_gateway as update_gateway_service, get_gateway as get_gateway_service, list_gateways as list_gateways_service, delete_gateway as delete_gateway_service
 from services.s3.s3_service import upload_openapi_spec
 from services.tools.tools_service import create_gateway_target, update_gateway_target, delete_gateway_target, get_gateway_target, list_gateway_targets
 from services.credentials.credentials_service import create_or_get_api_key_credential_provider
 from services.openapi_generator.openapi_generator import generate_openapi_spec
-from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, UpdateGatewayResponse, GetGatewayResponse, ListGatewaysResponse, GatewaySummary, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, UpdateToolResponse, GetGatewayTargetResponse, ListGatewayTargetsResponse, TargetSummary, DeleteToolResponse, DeleteGatewayResponse
+from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, UpdateGatewayRequest, UpdateGatewayResponse, GetGatewayResponse, ListGatewaysResponse, GatewaySummary, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, UpdateToolResponse, UpdateToolRequest, GetGatewayTargetResponse, ListGatewayTargetsResponse, TargetSummary, DeleteToolResponse, DeleteGatewayResponse
 from api.validations import validate_auth
 
 # CONFIG
@@ -332,16 +332,15 @@ async def create_gateway_no_auth(request: CreateGatewayNoAuthRequest):
 
 # Updates an existing gateway
 @app.put("/gateways/{gateway_id}", response_model=UpdateGatewayResponse)
-async def update_gateway(
-    gateway_id: str,
-    name: str,
-    protocol_type: str,
-    authorizer_type: str,
-    role_arn: str,
-    description: str = None
-):
+async def update_gateway(gateway_id: str, request: UpdateGatewayRequest):
     """Update an existing gateway"""
     try:
+        name = request.name
+        protocol_type = request.protocol_type
+        authorizer_type = request.authorizer_type
+        role_arn = request.role_arn
+        description = request.description
+
         # Validate required parameters
         if authorizer_type not in ["CUSTOM_JWT", "AWS_IAM", "NONE"]:
             raise HTTPException(
@@ -816,8 +815,7 @@ async def create_tool_from_spec(request: CreateToolFromSpecRequest):
 async def update_tool(
     gateway_id: str,
     target_id: str,
-    target_name: str,
-    target_configuration: dict
+    request: UpdateToolRequest
 ):
     """
     Update a tool (target) on a gateways.
@@ -825,26 +823,35 @@ async def update_tool(
     Args:
         gateway_id: The unique identifier of the gateways
         target_id: The unique identifier of the target to update
-        target_name: The updated name for the tool
-        target_configuration: The updated target configuration
+        request: UpdateToolRequest containing:
+            - target_name (required): The updated name for the tool
+            - target_configuration (required): The updated target configuration (with mcp.openApiSchema.s3.uri)
+            - credential_provider_configurations (optional): Only required if updating credentials or for authenticated gateways
+            - description (optional): Updated description for the tool
 
     Returns:
         UpdateToolResponse with update status and details
+
+    Note:
+        For gateways without authentication, credential_provider_configurations can be omitted.
+        The service will automatically preserve existing credential configurations if not provided.
     """
     try:
         response = update_gateway_target(
             gateway_id=gateway_id,
             target_id=target_id,
-            target_name=target_name,
-            target_configuration=target_configuration
+            target_name=request.target_name,
+            target_configuration=request.target_configuration,
+            credential_provider_configurations=request.credential_provider_configurations,
+            description=request.description
         )
 
         return UpdateToolResponse(
             status="success",
-            tool_name=target_name,
+            tool_name=request.target_name,
             target_id=response.get("targetId", target_id),
             gateway_id=gateway_id,
-            message=f"Tool '{target_name}' (target {target_id}) successfully updated on gateways '{gateway_id}'",
+            message=f"Tool '{request.target_name}' (target {target_id}) successfully updated on gateways '{gateway_id}'",
             # AWS SDK response fields
             gateway_arn=response.get("gatewayArn"),
             description=response.get("description"),

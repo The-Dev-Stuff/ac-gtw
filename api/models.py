@@ -129,6 +129,15 @@ class CreateGatewayResponse(BaseModel):
     workload_identity_details: Optional[dict[str, Any]] = None
 
 
+class UpdateGatewayRequest(BaseModel):
+    """Request payload to update a gateway"""
+    name: str
+    protocol_type: str
+    authorizer_type: str
+    role_arn: str
+    description: Optional[str] = None
+
+
 class UpdateGatewayResponse(BaseModel):
     """Response after updating a gateway - includes all fields from AWS SDK response"""
     status: str
@@ -191,6 +200,14 @@ class GatewaySummary(BaseModel):
     protocol_type: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class UpdateToolRequest(BaseModel):
+    """Request body for updating a tool"""
+    target_name: str
+    target_configuration: Optional[dict[str, Any]] = None
+    credential_provider_configurations: Optional[list[dict[str, Any]]] = None
+    description: Optional[str] = None
 
 
 class ListGatewaysResponse(BaseModel):
@@ -271,5 +288,4 @@ class DeleteGatewayResponse(BaseModel):
     gateway_id: str
     status: str
     status_reasons: Optional[list[str]] = None
-
 

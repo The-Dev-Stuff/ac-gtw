@@ -33,7 +33,8 @@ def get_gateway(gateway_id: str) -> dict:
     print(f"Retrieving gateway: {gateway_id}...")
 
     try:
-        response = gateway_client.get_gateway(gatewayId=gateway_id)
+        # The API expects 'gatewayIdentifier' (not 'gatewayId')
+        response = gateway_client.get_gateway(gatewayIdentifier=gateway_id)
         print(f"✓ Gateway retrieved. Name: {response.get('name')}")
         return response
     except ClientError as e:
@@ -236,7 +237,8 @@ def delete_gateway(gateway_id: str) -> None:
 
     try:
         print(f"Deleting gateways {gateway_id}...")
-        gateway_client.delete_gateway(gatewayId=gateway_id)
+        # The API expects 'gatewayIdentifier' (not 'gatewayId')
+        gateway_client.delete_gateway(gatewayIdentifier=gateway_id)
         print("✓ Gateway deleted.")
     except Exception as e:
         print(f"delete gateways error: {e}")

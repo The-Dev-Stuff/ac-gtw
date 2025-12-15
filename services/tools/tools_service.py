@@ -252,6 +252,21 @@ def update_gateway_target(
 
     print(f"Updating gateways target: {target_id} on gateways: {gateway_id}")
 
+    # Fetch existing target to preserve S3 URI and credentials if not provided
+    existing_target = None
+    try:
+        existing_target = get_gateway_target(gateway_id, target_id)
+    except Exception as e:
+        print(f"Warning: Could not fetch existing target: {str(e)}")
+
+    # If target_configuration not provided, use existing
+    if target_configuration is None:
+        if existing_target:
+            target_configuration = existing_target.get("targetConfiguration")
+            print(f"No target configuration provided. Using existing configuration.")
+        else:
+            raise ValueError(f"target_configuration is required when updating tool if existing target cannot be retrieved")
+
     # Build update parameters
     update_params = {
         "gatewayIdentifier": gateway_id,
@@ -260,12 +275,48 @@ def update_gateway_target(
         "targetConfiguration": target_configuration
     }
 
+    # If target_configuration has an empty S3 URI, preserve existing one
+    if existing_target and target_configuration:
+        # Check if S3 URI is provided in the new configuration
+        existing_s3_uri = None
+        if existing_target.get("targetConfiguration"):
+            existing_s3_uri = (
+                existing_target.get("targetConfiguration", {})
+                .get("mcp", {})
+                .get("openApiSchema", {})
+                .get("s3", {})
+                .get("uri")
+            )
+
+        new_s3_uri = (
+            target_configuration.get("mcp", {})
+            .get("openApiSchema", {})
+            .get("s3", {})
+            .get("uri")
+        )
+
+        # If no S3 URI provided in new config but one exists, use the existing URI
+        if not new_s3_uri and existing_s3_uri:
+            print(f"No S3 URI provided in update. Using existing S3 URI: {existing_s3_uri}")
+            target_configuration["mcp"]["openApiSchema"]["s3"]["uri"] = existing_s3_uri
+            update_params["targetConfiguration"] = target_configuration
+
+    # Add credential configurations if provided
+    # If not provided, fetch existing credentials from the target
+    if credential_provider_configurations is not None:
+        update_params["credentialProviderConfigurations"] = credential_provider_configurations
+    elif existing_target:
+        # Use existing credentials if not provided
+        existing_creds = existing_target.get("credentialProviderConfigurations")
+        if existing_creds:
+            update_params["credentialProviderConfigurations"] = existing_creds
+            print(f"Using existing credential configurations from current target")
+
     # Add optional parameters if provided
     if description is not None:
         update_params["description"] = description
 
-    if credential_provider_configurations is not None:
-        update_params["credentialProviderConfigurations"] = credential_provider_configurations
+    print(f"Update params: {update_params}")
 
     try:
         response = gateway_client.update_gateway_target(**update_params)
