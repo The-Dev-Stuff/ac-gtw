@@ -1,0 +1,668 @@
+{
+  "info": {
+    "name": "AgentCore Gateway Tools API - CRUD Operations",
+    "description": "Complete CRUD operations collection for managing gateways and tools on AgentCore Gateway",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is healthy\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('healthy');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateways - CRUD Operations",
+      "item": [
+        {
+          "name": "1. Create Gateway (With Auth)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Gateway created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.gateway_id).to.exist;",
+                  "    pm.expect(jsonData.name).to.eql('Production API Gateway');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('gateway_id', jsonData.gateway_id);",
+                  "    console.log('Gateway ID saved:', jsonData.gateway_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway_name\": \"Production API Gateway\",\n  \"description\": \"Main production gateway for managing third-party APIs\",\n  \"auth_config\": {\n    \"client_id\": \"my-client-id-12345\",\n    \"discovery_url\": \"https://example.auth.com/.well-known/openid-configuration\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/gateways",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Create Gateway (No Auth)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Gateway created successfully without auth\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.gateway_id).to.exist;",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('gateway_id_public', jsonData.gateway_id);",
+                  "    console.log('Public Gateway ID saved:', jsonData.gateway_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway_name\": \"Public APIs Gateway\",\n  \"description\": \"Gateway for public APIs with no authentication\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/gateways/no-auth",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "no-auth"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. List All Gateways",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains gateways\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.items).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways?max_results=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways"
+              ],
+              "query": [
+                {
+                  "key": "max_results",
+                  "value": "10"
+                },
+                {
+                  "key": "next_token",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Get Specific Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Gateway details retrieved\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.gateway_id).to.exist;",
+                  "    pm.expect(jsonData.name).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Update Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Gateway updated successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.name).to.eql('Updated Production Gateway');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Production Gateway\",\n  \"protocol_type\": \"MCP\",\n  \"authorizer_type\": \"CUSTOM_JWT\",\n  \"role_arn\": \"arn:aws:iam::123456789012:role/sample-lambdagateway-role-demo\",\n  \"description\": \"Updated description for production gateway\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Delete Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 202\", function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test(\"Gateway deletion initiated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('DELETING');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tools - CRUD Operations",
+      "item": [
+        {
+          "name": "1. Create Tool from Spec (JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Tool created successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.target_id).to.exist;",
+                  "    pm.expect(jsonData.tool_name).to.eql('todos-api-tool');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('target_id', jsonData.target_id);",
+                  "    console.log('Target ID saved:', jsonData.target_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway_id\": \"{{gateway_id}}\",\n  \"tool_name\": \"todos-api-tool\",\n  \"auth\": {\n    \"type\": \"api_key\",\n    \"provider_name\": \"todos-api-key-provider\",\n    \"config\": {\n      \"api_key\": \"sk-test-123456789abcdef\",\n      \"api_key_param_name\": \"X-API-Key\",\n      \"api_key_location\": \"HEADER\"\n    }\n  },\n  \"openapi_spec\": {\n    \"openapi\": \"3.0.0\",\n    \"info\": {\n      \"title\": \"Todos API\",\n      \"version\": \"1.0.0\",\n      \"description\": \"A simple API for managing todos\"\n    },\n    \"servers\": [\n      {\n        \"url\": \"https://api.example.com\"\n      }\n    ],\n    \"paths\": {\n      \"/todos\": {\n        \"get\": {\n          \"summary\": \"Get all todos\",\n          \"operationId\": \"getTodos\",\n          \"responses\": {\n            \"200\": {\n              \"description\": \"List of todos\",\n              \"content\": {\n                \"application/json\": {\n                  \"schema\": {\n                    \"type\": \"array\",\n                    \"items\": {\n                      \"type\": \"object\",\n                      \"properties\": {\n                        \"id\": {\n                          \"type\": \"integer\"\n                        },\n                        \"title\": {\n                          \"type\": \"string\"\n                        },\n                        \"completed\": {\n                          \"type\": \"boolean\"\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }\n        },\n        \"post\": {\n          \"summary\": \"Create a new todo\",\n          \"operationId\": \"createTodo\",\n          \"requestBody\": {\n            \"required\": true,\n            \"content\": {\n              \"application/json\": {\n                \"schema\": {\n                  \"type\": \"object\",\n                  \"properties\": {\n                    \"title\": {\n                      \"type\": \"string\"\n                    },\n                    \"completed\": {\n                      \"type\": \"boolean\"\n                    }\n                  }\n                }\n              }\n            }\n          },\n          \"responses\": {\n            \"201\": {\n              \"description\": \"Todo created\"\n            }\n          }\n        }\n      },\n      \"/todos/{id}\": {\n        \"get\": {\n          \"summary\": \"Get a specific todo\",\n          \"operationId\": \"getTodoById\",\n          \"parameters\": [\n            {\n              \"name\": \"id\",\n              \"in\": \"path\",\n              \"required\": true,\n              \"schema\": {\n                \"type\": \"integer\"\n              }\n            }\n          ],\n          \"responses\": {\n            \"200\": {\n              \"description\": \"Todo details\"\n            }\n          }\n        },\n        \"put\": {\n          \"summary\": \"Update a todo\",\n          \"operationId\": \"updateTodo\",\n          \"parameters\": [\n            {\n              \"name\": \"id\",\n              \"in\": \"path\",\n              \"required\": true,\n              \"schema\": {\n                \"type\": \"integer\"\n              }\n            }\n          ],\n          \"responses\": {\n            \"200\": {\n              \"description\": \"Todo updated\"\n            }\n          }\n        },\n        \"delete\": {\n          \"summary\": \"Delete a todo\",\n          \"operationId\": \"deleteTodo\",\n          \"parameters\": [\n            {\n              \"name\": \"id\",\n              \"in\": \"path\",\n              \"required\": true,\n              \"schema\": {\n                \"type\": \"integer\"\n              }\n            }\n          ],\n          \"responses\": {\n            \"204\": {\n              \"description\": \"Todo deleted\"\n            }\n          }\n        }\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/from-spec",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tools",
+                "from-spec"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Create Tool from URL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Tool created from URL successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.target_id).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway_id\": \"{{gateway_id}}\",\n  \"tool_name\": \"nasa-api-tool\",\n  \"openapi_spec_url\": \"https://api.nasa.gov/swagger.json\",\n  \"auth\": {\n    \"type\": \"api_key\",\n    \"provider_name\": \"nasa-api-key-provider\",\n    \"config\": {\n      \"api_key\": \"DEMO_KEY\",\n      \"api_key_param_name\": \"api_key\",\n      \"api_key_location\": \"QUERY\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/from-url",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tools",
+                "from-url"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Create Tool from API Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Tool created from API info successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('success');",
+                  "    pm.expect(jsonData.tool_name).to.eql('weather-api-tool');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gateway_id\": \"{{gateway_id}}\",\n  \"tool_name\": \"weather-api-tool\",\n  \"auth\": {\n    \"type\": \"api_key\",\n    \"provider_name\": \"weather-api-key-provider\",\n    \"config\": {\n      \"api_key\": \"weather-api-key-12345\",\n      \"api_key_param_name\": \"Authorization\",\n      \"api_key_location\": \"HEADER\"\n    }\n  },\n  \"api_info\": {\n    \"method\": \"GET\",\n    \"url\": \"https://api.weather.com/forecast\",\n    \"description\": \"Get weather forecast for a location\",\n    \"query_params\": [\n      {\n        \"name\": \"location\",\n        \"type\": \"string\",\n        \"required\": true,\n        \"description\": \"Location for weather forecast\"\n      },\n      {\n        \"name\": \"units\",\n        \"type\": \"string\",\n        \"required\": false,\n        \"description\": \"Temperature units (celsius or fahrenheit)\"\n      }\n    ],\n    \"headers\": [\n      {\n        \"name\": \"Authorization\",\n        \"type\": \"string\",\n        \"required\": true,\n        \"description\": \"Bearer token\"\n      }\n    ],\n    \"body_schema\": {}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tools/from-api-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tools",
+                "from-api-info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. List All Tools for Gateway",
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                {
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Response contains tools/targets\", function () {",
+                    "    var jsonData = pm.response.json();",
+                    "    pm.expect(jsonData.status).to.eql('success');",
+                    "    pm.expect(jsonData.items).to.be.an('array');",
+                    "});"
+                  ],
+                  "type": "text/javascript"
+                }
+              ]
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}/tools?max_results=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}",
+                "tools"
+              ],
+              "query": [
+                {
+                  "key": "max_results",
+                  "value": "10"
+                },
+                {
+                  "key": "next_token",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Get Specific Tool",
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                {
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Tool details retrieved\", function () {",
+                    "    var jsonData = pm.response.json();",
+                    "    pm.expect(jsonData.status).to.eql('success');",
+                    "    pm.expect(jsonData.target_id).to.exist;",
+                    "    pm.expect(jsonData.name).to.exist;",
+                    "});"
+                  ],
+                  "type": "text/javascript"
+                }
+              ]
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}/tools/{{target_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}",
+                "tools",
+                "{{target_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Update Tool",
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                {
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Tool updated successfully\", function () {",
+                    "    var jsonData = pm.response.json();",
+                    "    pm.expect(jsonData.status).to.eql('success');",
+                    "    pm.expect(jsonData.tool_name).to.eql('updated-todos-tool');",
+                    "});"
+                  ],
+                  "type": "text/javascript"
+                }
+              ]
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_name\": \"updated-todos-tool\",\n  \"target_configuration\": {\n    \"openapi_s3_uri\": \"s3://openapi-specs-bucket/updated-todos-tool.json\",\n    \"base_url\": \"https://api.updated.example.com\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}/tools/{{target_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}",
+                "tools",
+                "{{target_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Delete Tool",
+          "event": [
+            {
+              "listen": "test",
+              "script": [
+                {
+                  "exec": [
+                    "pm.test(\"Status code is 200\", function () {",
+                    "    pm.response.to.have.status(200);",
+                    "});",
+                    "",
+                    "pm.test(\"Tool deletion initiated\", function () {",
+                    "    var jsonData = pm.response.json();",
+                    "    pm.expect(jsonData.status).to.exist;",
+                    "});"
+                  ],
+                  "type": "text/javascript"
+                }
+              ]
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/gateways/{{gateway_id}}/tools/{{target_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "gateways",
+                "{{gateway_id}}",
+                "tools",
+                "{{target_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "gateway_id",
+      "value": "gateway-123456",
+      "type": "string"
+    },
+    {
+      "key": "gateway_id_public",
+      "value": "gateway-public-123456",
+      "type": "string"
+    },
+    {
+      "key": "target_id",
+      "value": "target-123456",
+      "type": "string"
+    }
+  ]
+}
+

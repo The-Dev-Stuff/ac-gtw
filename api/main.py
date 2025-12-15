@@ -13,12 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
-from services.gateways.gateway_service import create_agentcore_gateway_role, create_gateway, update_gateway
+from services.gateways.gateway_service import create_agentcore_gateway_role, create_gateway, update_gateway, get_gateway, list_gateways, delete_gateway
 from services.s3.s3_service import upload_openapi_spec
-from services.tools.tools_service import create_gateway_target, update_gateway_target, delete_gateway_target
+from services.tools.tools_service import create_gateway_target, update_gateway_target, delete_gateway_target, get_gateway_target, list_gateway_targets
 from services.credentials.credentials_service import create_or_get_api_key_credential_provider
 from services.openapi_generator.openapi_generator import generate_openapi_spec
-from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, UpdateGatewayResponse, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, UpdateToolResponse, DeleteToolResponse
+from api.models import HealthCheckResponse, CreateToolResponse, CreateGatewayRequest, CreateGatewayNoAuthRequest, CreateGatewayResponse, UpdateGatewayResponse, GetGatewayResponse, ListGatewaysResponse, GatewaySummary, Auth, CreateToolFromUrlRequest, CreateToolFromApiInfoRequest, CreateToolFromSpecRequest, UpdateToolResponse, GetGatewayTargetResponse, ListGatewayTargetsResponse, TargetSummary, DeleteToolResponse, DeleteGatewayResponse
 from api.validations import validate_auth
 
 # CONFIG
@@ -91,17 +91,132 @@ def _register_tool_with_gateway(
     return response
 
 
-@app.get("/", response_model=HealthCheckResponse)
+@app.get("/health", response_model=HealthCheckResponse)
 async def health_check():
     """Health check endpoint"""
     return HealthCheckResponse(
         status="healthy",
-        message="AgentCore Gateway Tools API is running"
+        message="AgentCore Gateway Tools API is running",
+        openapi_specs_bucket=OPENAPI_SPECS_BUCKET,
+        aws_region=AWS_REGION
     )
 
+## Gateways / MCP Servers
+
+# Retrieves a specific gateway
+@app.get("/gateways/{gateway_id}", response_model=GetGatewayResponse)
+async def get_gateway(gateway_id: str):
+    """
+    Retrieve information about a specific gateway.
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+
+    Returns:
+        GetGatewayResponse with full gateway details
+    """
+    try:
+        response = get_gateway(gateway_id=gateway_id)
+
+        return GetGatewayResponse(
+            status="success",
+            message=f"Gateway '{response.get('name')}' retrieved successfully",
+            # AWS SDK response fields
+            gateway_id=response.get("gatewayId"),
+            gateway_url=response.get("gatewayUrl"),
+            gateway_arn=response.get("gatewayArn"),
+            name=response.get("name"),
+            description=response.get("description"),
+            created_at=response.get("createdAt"),
+            updated_at=response.get("updatedAt"),
+            gateway_status=response.get("status"),
+            status_reasons=response.get("statusReasons"),
+            authorizer_type=response.get("authorizerType"),
+            protocol_type=response.get("protocolType"),
+            role_arn=response.get("roleArn"),
+            authorizer_configuration=response.get("authorizerConfiguration"),
+            protocol_configuration=response.get("protocolConfiguration"),
+            exception_level=response.get("exceptionLevel"),
+            interceptor_configurations=response.get("interceptorConfigurations"),
+            policy_engine_configuration=response.get("policyEngineConfiguration"),
+            kms_key_arn=response.get("kmsKeyArn"),
+            workload_identity_details=response.get("workloadIdentityDetails")
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        print(f"Error retrieving gateway: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve gateway: {str(e)}"
+        )
+
+# Lists all gateways
+@app.get("/gateways", response_model=ListGatewaysResponse)
+async def list_gateways(max_results: int = None, next_token: str = None):
+    """
+    List all gateways in the account.
+
+    Args:
+        max_results: Maximum number of results to return (1-1000). Default uses AWS default.
+        next_token: Token for pagination to get the next batch of results
+
+    Returns:
+        ListGatewaysResponse with gateway summaries and pagination token
+    """
+    try:
+        # Validate max_results if provided
+        if max_results is not None:
+            if max_results < 1 or max_results > 1000:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="maxResults must be between 1 and 1000"
+                )
+
+        response = list_gateways(max_results=max_results, next_token=next_token)
+
+        # Transform items to match GatewaySummary model
+        items = [
+            GatewaySummary(
+                gateway_id=item.get("gatewayId"),
+                name=item.get("name"),
+                description=item.get("description"),
+                gateway_status=item.get("status"),
+                authorizer_type=item.get("authorizerType"),
+                protocol_type=item.get("protocolType"),
+                created_at=item.get("createdAt"),
+                updated_at=item.get("updatedAt")
+            )
+            for item in response.get("items", [])
+        ]
+
+        return ListGatewaysResponse(
+            status="success",
+            message=f"Retrieved {len(items)} gateway(s)",
+            items=items,
+            next_token=response.get("nextToken")
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error listing gateways: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list gateways: {str(e)}"
+        )
 
 @app.post("/gateways", response_model=CreateGatewayResponse)
-async def create_gateway_endpoint(request: CreateGatewayRequest):
+async def create_gateway(request: CreateGatewayRequest):
     """Create a new gateways with provided authentication configuration"""
     try:
         # Validate required auth config
@@ -166,7 +281,7 @@ async def create_gateway_endpoint(request: CreateGatewayRequest):
 
 
 @app.post("/gateways/no-auth", response_model=CreateGatewayResponse)
-async def create_gateway_no_auth_endpoint(request: CreateGatewayNoAuthRequest):
+async def create_gateway_no_auth(request: CreateGatewayNoAuthRequest):
     """Create a new gateways without authentication"""
     try:
         # Create IAM role
@@ -217,7 +332,7 @@ async def create_gateway_no_auth_endpoint(request: CreateGatewayNoAuthRequest):
 
 # Updates an existing gateway
 @app.put("/gateways/{gateway_id}", response_model=UpdateGatewayResponse)
-async def update_gateway_endpoint(
+async def update_gateway(
     gateway_id: str,
     name: str,
     protocol_type: str,
@@ -289,8 +404,133 @@ async def update_gateway_endpoint(
         )
 
 
+# Deletes an existing gateway
+@app.delete("/gateways/{gateway_id}", response_model=DeleteGatewayResponse, status_code=status.HTTP_202_ACCEPTED)
+async def delete_gateway(gateway_id: str):
+    """Delete an existing gateway"""
+    try:
+        delete_gateway(gateway_id=gateway_id)
+
+        return DeleteGatewayResponse(
+            gateway_id=gateway_id,
+            status="DELETING"
+        )
+    except Exception as e:
+        print(f"Error deleting gateway: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete gateway: {str(e)}"
+        )
+
+## Tools
+
+# Retrieves a specific gateway tool (target)
+@app.get("/gateways/{gateway_id}/tools/{target_id}", response_model=GetGatewayTargetResponse)
+async def get_tool(gateway_id: str, target_id: str):
+    """
+    Retrieve information about a specific gateway target (tool).
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        target_id: The unique identifier of the target
+
+    Returns:
+        GetGatewayTargetResponse with full target details
+    """
+    try:
+        response = get_gateway_target(gateway_id=gateway_id, target_id=target_id)
+
+        return GetGatewayTargetResponse(
+            status="success",
+            message=f"Gateway target '{response.get('name')}' retrieved successfully",
+            # AWS SDK response fields
+            target_id=response.get("targetId"),
+            name=response.get("name"),
+            description=response.get("description"),
+            gateway_arn=response.get("gatewayArn"),
+            created_at=response.get("createdAt"),
+            updated_at=response.get("updatedAt"),
+            last_synchronized_at=response.get("lastSynchronizedAt"),
+            target_status=response.get("status"),
+            status_reasons=response.get("statusReasons"),
+            target_configuration=response.get("targetConfiguration"),
+            credential_provider_configurations=response.get("credentialProviderConfigurations")
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        print(f"Error retrieving gateway target: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve gateway target: {str(e)}"
+        )
+
+
+# Lists all gateway targets (tools) for a gateway
+@app.get("/gateways/{gateway_id}/tools", response_model=ListGatewayTargetsResponse)
+async def list_tools(gateway_id: str, max_results: int = None, next_token: str = None):
+    """
+    List all targets (tools) for a specific gateway.
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        max_results: Maximum number of results to return (1-1000). Default uses AWS default.
+        next_token: Token for pagination to get the next batch of results
+
+    Returns:
+        ListGatewayTargetsResponse with target summaries and pagination token
+    """
+    try:
+        # Validate max_results if provided
+        if max_results is not None:
+            if max_results < 1 or max_results > 1000:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="maxResults must be between 1 and 1000"
+                )
+
+        response = list_gateway_targets(gateway_id=gateway_id, max_results=max_results, next_token=next_token)
+
+        # Transform items to TargetSummary objects
+        items = [
+            TargetSummary(
+                target_id=item.get("targetId"),
+                name=item.get("name"),
+                description=item.get("description"),
+                target_status=item.get("status"),
+                created_at=item.get("createdAt"),
+                updated_at=item.get("updatedAt")
+            )
+            for item in response.get("items", [])
+        ]
+
+        return ListGatewayTargetsResponse(
+            status="success",
+            message=f"Retrieved {len(items)} target(s)",
+            items=items,
+            next_token=response.get("nextToken")
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error listing gateway targets: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list gateway targets: {str(e)}"
+        )
+
+
 # Creates tool from uploaded OpenAPI spec file
-@app.post("/tools", response_model=CreateToolResponse)
 async def create_tool(
     gateway_id: str = Form(...),
     tool_name: str = Form(...),
@@ -629,7 +869,7 @@ async def update_tool(
         )
 
 
-# Deletes target from gateways - A target can be 1 tool or multiple tools
+# Deletes tool (target) from gateway - A target can be 1 tool or multiple tools
 @app.delete("/gateways/{gateway_id}/tools/{target_id}", response_model=DeleteToolResponse)
 async def delete_tool(gateway_id: str, target_id: str):
     """
@@ -668,17 +908,6 @@ async def delete_tool(gateway_id: str, target_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete tool: {str(e)}"
         )
-
-
-# Health check for tools management
-@app.get("/health")
-async def health():
-    """Check if tools management is available"""
-    return {
-        "status": "ready",
-        "openapi_specs_bucket": OPENAPI_SPECS_BUCKET,
-        "aws_region": AWS_REGION
-    }
 
 
 if __name__ == "__main__":

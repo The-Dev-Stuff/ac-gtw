@@ -11,128 +11,82 @@ AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 ROLE_NAME = "sample-lambdagateway-role-demo"
 
 
-def create_agentcore_gateway_role(role_name: str, region: str = None) -> str:
+def get_gateway(gateway_id: str) -> dict:
     """
-    Create an IAM role for the AgentCore Gateway.
+    Retrieve information about a specific gateway.
 
-    Creates a role that allows the bedrock-agentcore service to assume it with a broad policy
-    for gateways management. Adjust permissions to least privilege as needed for production.
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_GetGateway.html
 
     Args:
-        role_name: Name of the IAM role to create
-        region: Optional AWS region
+        gateway_id: The unique identifier of the gateway to retrieve
 
     Returns:
-        Role ARN string
+        dict: Gateway details containing all gateway properties
+
+    Raises:
+        ValueError: If gateway not found
+        ClientError: If AWS API call fails
     """
-    iam = boto3.client("iam", region_name=region)
-    assume_role_policy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Principal": {"Service": "bedrock-agentcore.amazonaws.com"},
-                "Action": "sts:AssumeRole"
-            }
-        ]
-    }
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print(f"Retrieving gateway: {gateway_id}...")
 
     try:
-        resp = iam.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(assume_role_policy),
-            Description="Role for Bedrock AgentCore Gateway"
-        )
-        role_arn = resp["Role"]["Arn"]
+        response = gateway_client.get_gateway(gatewayId=gateway_id)
+        print(f"✓ Gateway retrieved. Name: {response.get('name')}")
+        return response
     except ClientError as e:
-        if e.response['Error']['Code'] == 'EntityAlreadyExists':
-            resp = iam.get_role(RoleName=role_name)
-            role_arn = resp['Role']['Arn']
+        error_code = e.response["Error"]["Code"]
+        if error_code == "ResourceNotFoundException":
+            raise ValueError(f"Gateway '{gateway_id}' not found")
         else:
             raise
 
-    # Attach inline policy for gateways management
-    policy_document = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "bedrock-agentcore-control:*",
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:ListBucket",
-                    "iam:PassRole",
-                    "cognito-idp:*",
-                    "sts:GetCallerIdentity"
-                ],
-                "Resource": "*"
-            },
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "bedrock-agentcore:GetWorkloadAccessToken",
-                    "bedrock-agentcore:InvokeCredentialProvider",
-                    "bedrock-agentcore:GetResourceApiKey"
-                ],
-                "Resource": "*"
-            },
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "secretsmanager:GetSecretValue"
-                ],
-                "Resource": "*"
-            }
-        ]
-    }
+
+def list_gateways(max_results: int = None, next_token: str = None) -> dict:
+    """
+    List all gateways in the account.
+
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_ListGateways.html
+
+    Args:
+        max_results: Maximum number of results to return (1-1000). If not provided, uses AWS default.
+        next_token: Token for pagination to get the next batch of results
+
+    Returns:
+        dict: Contains:
+            - items (list): Array of gateway summary objects with:
+                - gatewayId, name, description, status, createdAt, updatedAt
+                - authorizerType, protocolType
+            - nextToken (str): Token for pagination if more results available
+
+    Raises:
+        ClientError: If AWS API call fails
+    """
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print("Listing all gateways...")
+
+    list_params = {}
+    if max_results is not None:
+        if max_results < 1 or max_results > 1000:
+            raise ValueError("maxResults must be between 1 and 1000")
+        list_params["maxResults"] = max_results
+
+    if next_token is not None:
+        list_params["nextToken"] = next_token
 
     try:
-        iam.put_role_policy(
-            RoleName=role_name,
-            PolicyName=f"{role_name}-inline-policy",
-            PolicyDocument=json.dumps(policy_document)
-        )
-    except Exception as e:
-        print("Warning attaching inline policy:", e)
-
-    return role_arn
-
-
-def _create_gateway_with_auth(gateway_name: str, role_arn: str, auth_config: dict, description: str) -> dict:
-    """Create a gateways with JWT authentication."""
-    session = boto3.Session(region_name=AWS_REGION)
-    gateway_client = session.client("bedrock-agentcore-control")
-
-    jwt_auth_config = {
-        "customJWTAuthorizer": {
-            "allowedClients": [auth_config["client_id"]],
-            "discoveryUrl": auth_config["discovery_url"]
-        }
-    }
-
-    return gateway_client.create_gateway(
-        name=gateway_name,
-        roleArn=role_arn,
-        protocolType="MCP",
-        authorizerType="CUSTOM_JWT",
-        authorizerConfiguration=jwt_auth_config,
-        description=description or "AgentCore Gateway with OpenAPI targets"
-    )
-
-
-def _create_gateway_without_auth(gateway_name: str, role_arn: str, description: str) -> dict:
-    """Create a gateways without authentication."""
-    session = boto3.Session(region_name=AWS_REGION)
-    gateway_client = session.client("bedrock-agentcore-control")
-
-    return gateway_client.create_gateway(
-        name=gateway_name,
-        roleArn=role_arn,
-        protocolType="MCP",
-        authorizerType="NONE",
-        description=description or "AgentCore Gateway without authentication"
-    )
+        response = gateway_client.list_gateways(**list_params)
+        items = response.get("items", [])
+        print(f"✓ Retrieved {len(items)} gateway(s).")
+        if response.get("nextToken"):
+            print(f"  More results available. Use nextToken to fetch more.")
+        return response
+    except ClientError as e:
+        raise
 
 
 def create_gateway(gateway_name: str, role_arn: str, is_authenticated: bool, auth_config: dict = None, description: str = None) -> dict:
@@ -287,4 +241,128 @@ def delete_gateway(gateway_id: str) -> None:
     except Exception as e:
         print(f"delete gateways error: {e}")
         raise
+
+# Private methods
+def create_agentcore_gateway_role(role_name: str, region: str = None) -> str:
+    """
+    Create an IAM role for the AgentCore Gateway.
+
+    Creates a role that allows the bedrock-agentcore service to assume it with a broad policy
+    for gateways management. Adjust permissions to least privilege as needed for production.
+
+    Args:
+        role_name: Name of the IAM role to create
+        region: Optional AWS region
+
+    Returns:
+        Role ARN string
+    """
+    iam = boto3.client("iam", region_name=region)
+    assume_role_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {"Service": "bedrock-agentcore.amazonaws.com"},
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    }
+
+    try:
+        resp = iam.create_role(
+            RoleName=role_name,
+            AssumeRolePolicyDocument=json.dumps(assume_role_policy),
+            Description="Role for Bedrock AgentCore Gateway"
+        )
+        role_arn = resp["Role"]["Arn"]
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'EntityAlreadyExists':
+            resp = iam.get_role(RoleName=role_name)
+            role_arn = resp['Role']['Arn']
+        else:
+            raise
+
+    # Attach inline policy for gateways management
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore-control:*",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                    "iam:PassRole",
+                    "cognito-idp:*",
+                    "sts:GetCallerIdentity"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore:GetWorkloadAccessToken",
+                    "bedrock-agentcore:InvokeCredentialProvider",
+                    "bedrock-agentcore:GetResourceApiKey"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+
+    try:
+        iam.put_role_policy(
+            RoleName=role_name,
+            PolicyName=f"{role_name}-inline-policy",
+            PolicyDocument=json.dumps(policy_document)
+        )
+    except Exception as e:
+        print("Warning attaching inline policy:", e)
+
+    return role_arn
+
+
+def _create_gateway_with_auth(gateway_name: str, role_arn: str, auth_config: dict, description: str) -> dict:
+    """Create a gateways with JWT authentication."""
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    jwt_auth_config = {
+        "customJWTAuthorizer": {
+            "allowedClients": [auth_config["client_id"]],
+            "discoveryUrl": auth_config["discovery_url"]
+        }
+    }
+
+    return gateway_client.create_gateway(
+        name=gateway_name,
+        roleArn=role_arn,
+        protocolType="MCP",
+        authorizerType="CUSTOM_JWT",
+        authorizerConfiguration=jwt_auth_config,
+        description=description or "AgentCore Gateway with OpenAPI targets"
+    )
+
+
+def _create_gateway_without_auth(gateway_name: str, role_arn: str, description: str) -> dict:
+    """Create a gateways without authentication."""
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    return gateway_client.create_gateway(
+        name=gateway_name,
+        roleArn=role_arn,
+        protocolType="MCP",
+        authorizerType="NONE",
+        description=description or "AgentCore Gateway without authentication"
+    )
 

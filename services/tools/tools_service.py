@@ -9,6 +9,100 @@ from botocore.exceptions import ClientError
 
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 
+def get_gateway_target(gateway_id: str, target_id: str) -> dict:
+    """
+    Retrieve information about a specific gateway target.
+
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_GetGatewayTarget.html
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        target_id: The unique identifier of the target to retrieve
+
+    Returns:
+        dict: Target details containing:
+            - targetId (str): Unique identifier of the target
+            - name (str): Name of the target
+            - description (str): Description of the target
+            - status (str): Current status (READY, CREATING, etc.)
+            - gatewayArn (str): ARN of the gateway
+            - createdAt (str): Creation timestamp
+            - updatedAt (str): Last update timestamp
+            - lastSynchronizedAt (str): Last synchronization timestamp
+            - statusReasons (list): Reasons for current status
+            - targetConfiguration (dict): Target configuration
+            - credentialProviderConfigurations (list): Credential provider configurations
+
+    Raises:
+        ValueError: If target not found on gateway
+        ClientError: If AWS API call fails
+    """
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print(f"Retrieving gateway target: {target_id} from gateway: {gateway_id}...")
+
+    try:
+        response = gateway_client.get_gateway_target(
+            gatewayIdentifier=gateway_id,
+            targetId=target_id
+        )
+        print(f"✓ Gateway target retrieved. Name: {response.get('name')}")
+        return response
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "ResourceNotFoundException":
+            raise ValueError(f"Target '{target_id}' not found on gateway '{gateway_id}'")
+        else:
+            raise
+
+
+def list_gateway_targets(gateway_id: str, max_results: int = None, next_token: str = None) -> dict:
+    """
+    List all targets for a specific gateway.
+
+    Docs: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_ListGatewayTargets.html
+
+    Args:
+        gateway_id: The unique identifier of the gateway
+        max_results: Maximum number of results to return (1-1000). If not provided, uses AWS default.
+        next_token: Token for pagination to get the next batch of results
+
+    Returns:
+        dict: Contains:
+            - items (list): Array of target summary objects with:
+                - targetId, name, description, status, createdAt, updatedAt
+            - nextToken (str): Token for pagination if more results available
+
+    Raises:
+        ValueError: If parameters are invalid
+        ClientError: If AWS API call fails
+    """
+    session = boto3.Session(region_name=AWS_REGION)
+    gateway_client = session.client("bedrock-agentcore-control")
+
+    print(f"Listing all targets for gateway: {gateway_id}...")
+
+    list_params = {"gatewayIdentifier": gateway_id}
+
+    if max_results is not None:
+        if max_results < 1 or max_results > 1000:
+            raise ValueError("maxResults must be between 1 and 1000")
+        list_params["maxResults"] = max_results
+
+    if next_token is not None:
+        list_params["nextToken"] = next_token
+
+    try:
+        response = gateway_client.list_gateway_targets(**list_params)
+        items = response.get("items", [])
+        print(f"✓ Retrieved {len(items)} target(s).")
+        if response.get("nextToken"):
+            print(f"  More results available. Use nextToken to fetch more.")
+        return response
+    except ClientError as e:
+        raise
+
 
 def create_gateway_target(
     gateway_id: str,

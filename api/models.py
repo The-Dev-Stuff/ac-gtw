@@ -32,6 +32,12 @@ class HealthCheckResponse(BaseModel):
     """Health check response"""
     status: str
     message: str
+    openapi_specs_bucket: Optional[str] = None
+    aws_region: Optional[str] = None
+    openapi_specs_bucket: Optional[str] = None
+    aws_region: Optional[str] = None
+    openapi_specs_bucket: str
+    aws_region: str
 
 
 class CreateToolResponse(BaseModel):
@@ -52,6 +58,7 @@ class CreateToolResponse(BaseModel):
     status_reasons: Optional[list[str]] = None
     target_configuration: Optional[dict[str, Any]] = None
     credential_provider_configurations: Optional[list[dict[str, Any]]] = None
+
 
 class CreateToolFromUrlRequest(BaseModel):
     """Request to create a tool from a URL to an OpenAPI spec"""
@@ -152,6 +159,52 @@ class UpdateGatewayResponse(BaseModel):
     workload_identity_details: Optional[dict[str, Any]] = None
 
 
+class GetGatewayResponse(BaseModel):
+    """Response after retrieving a gateway - includes all fields from AWS SDK response"""
+    status: str
+    message: str
+    # AWS SDK response fields
+    gateway_id: Optional[str] = None
+    gateway_url: Optional[str] = None
+    gateway_arn: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    gateway_status: Optional[str] = None
+    status_reasons: Optional[list[str]] = None
+    authorizer_type: Optional[str] = None
+    protocol_type: Optional[str] = None
+    role_arn: Optional[str] = None
+    authorizer_configuration: Optional[dict[str, Any]] = None
+    protocol_configuration: Optional[dict[str, Any]] = None
+    exception_level: Optional[str] = None
+    interceptor_configurations: Optional[list[dict[str, Any]]] = None
+    policy_engine_configuration: Optional[dict[str, Any]] = None
+    kms_key_arn: Optional[str] = None
+    workload_identity_details: Optional[dict[str, Any]] = None
+
+
+class GatewaySummary(BaseModel):
+    """Summary of a gateway in the list"""
+    gateway_id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    gateway_status: Optional[str] = None
+    authorizer_type: Optional[str] = None
+    protocol_type: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class ListGatewaysResponse(BaseModel):
+    """Response after listing gateways"""
+    status: str
+    message: str
+    items: list[GatewaySummary]
+    next_token: Optional[str] = None
+
+
 class UpdateToolResponse(BaseModel):
     """Response after updating a tool - includes all fields from AWS SDK response"""
     status: str
@@ -171,6 +224,42 @@ class UpdateToolResponse(BaseModel):
     credential_provider_configurations: Optional[list[dict[str, Any]]] = None
 
 
+class GetGatewayTargetResponse(BaseModel):
+    """Response after retrieving a gateway target - includes all fields from AWS SDK response"""
+    status: str
+    message: str
+    # AWS SDK response fields
+    target_id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    gateway_arn: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_synchronized_at: Optional[datetime] = None
+    target_status: Optional[str] = None
+    status_reasons: Optional[list[str]] = None
+    target_configuration: Optional[dict[str, Any]] = None
+    credential_provider_configurations: Optional[list[dict[str, Any]]] = None
+
+
+class TargetSummary(BaseModel):
+    """Summary of a gateway target in the list"""
+    target_id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    target_status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class ListGatewayTargetsResponse(BaseModel):
+    """Response after listing gateway targets"""
+    status: str
+    message: str
+    items: list[TargetSummary]
+    next_token: Optional[str] = None
+
+
 class DeleteToolResponse(BaseModel):
     """Response after deleting a tool"""
     status: str
@@ -179,5 +268,12 @@ class DeleteToolResponse(BaseModel):
     gateway_arn: Optional[str] = None
     status_reasons: Optional[list[str]] = None
     message: str
+
+
+class DeleteGatewayResponse(BaseModel):
+    """Response after deleting a gateway"""
+    gateway_id: str
+    status: str
+    status_reasons: Optional[list[str]] = None
 
 
