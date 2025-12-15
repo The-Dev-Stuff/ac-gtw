@@ -158,7 +158,7 @@ add_tool_to_gateway(
 ```python
 from tools import add_tool_to_gateway
 
-# Same gateway, different tools
+# Same gateways, different tools
 add_tool_to_gateway(gw_id, "Tool1", "spec1.json", ...)
 add_tool_to_gateway(gw_id, "Tool2", "spec2.json", ...)
 add_tool_to_gateway(gw_id, "Tool3", "spec3.json", ...)
@@ -198,7 +198,7 @@ token_response = get_token(
     user_pool_id=auth_config["user_pool_id"],
     client_id=auth_config["client_id"],
     client_secret=auth_config["client_secret"],
-    scope=f"{auth_config['resource_server_id']}/gateway:read",
+    scope=f"{auth_config['resource_server_id']}/gateways:read",
     region="us-east-1"
 )
 ```
@@ -232,7 +232,7 @@ from tools import delete_gateway_target
 # Delete tools first
 delete_gateway_target(gateway_id, target_name)
 
-# Then delete gateway
+# Then delete gateways
 delete_gateway(gateway_id)
 ```
 

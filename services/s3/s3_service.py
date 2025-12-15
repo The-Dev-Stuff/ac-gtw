@@ -28,7 +28,7 @@ def _ensure_s3_bucket(bucket_name: str = None) -> str:
 
     if not bucket_name:
         account_id = sts.get_caller_identity()["Account"]
-        bucket_name = f"agentcore-gateway-targets-openapi-specs-{account_id}-{AWS_REGION}"
+        bucket_name = f"agentcore-gateways-targets-openapi-specs-{account_id}-{AWS_REGION}"
 
     print(f"Ensuring S3 bucket exists: {bucket_name}")
     try:
@@ -56,7 +56,7 @@ def upload_openapi_spec(spec_json: dict, tool_name: str, gateway_id: str, bucket
     Args:
         spec_json: OpenAPI spec as a Python dict
         tool_name: Logical name of the tool
-        gateway_id: ID of the gateway this tool is being registered with
+        gateway_id: ID of the gateways this tool is being registered with
         bucket_name: Optional S3 bucket name; if omitted a default per-account bucket is used
 
     Returns:
@@ -69,9 +69,9 @@ def upload_openapi_spec(spec_json: dict, tool_name: str, gateway_id: str, bucket
 
     # Build hierarchical object key: gateways/{gateway_id}/tools/{tool_name}/{timestamp}-{uuid}.json
     # This allows:
-    # - Easy listing of all tools for a gateway: s3://bucket/gateways/{gateway_id}/tools/
+    # - Easy listing of all tools for a gateways: s3://bucket/gateways/{gateway_id}/tools/
     # - Easy listing of all versions of a tool: s3://bucket/gateways/{gateway_id}/tools/{tool_name}/
-    # - Simple cleanup policies per gateway or tool
+    # - Simple cleanup policies per gateways or tool
     object_key = f"gateways/{gateway_id}/tools/{tool_name}/{int(time.time())}-{uuid.uuid4().hex}.json"
     body = json.dumps(spec_json).encode("utf-8")
 

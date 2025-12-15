@@ -36,9 +36,9 @@ The response was updated to return all of the metadata.
     "tool_name": "testing-todos-three",
     "gateway_id": "samplegatewaysecond-s8qkj5fs2n",
     "openapi_spec_path": "openapi_specs/testing-todos-three_openapi.json",
-    "message": "Tool 'testing-todos-three' successfully created and registered on gateway samplegatewaysecond-s8qkj5fs2n",
+    "message": "Tool 'testing-todos-three' successfully created and registered on gateways samplegatewaysecond-s8qkj5fs2n",
     "target_id": "MKSTSMMSSZ",
-    "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateway/samplegatewaysecond-s8qkj5fs2n",
+    "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateways/samplegatewaysecond-s8qkj5fs2n",
     "description": "OpenAPI target: testing-todos-three",
     "created_at": "2025-12-12T21:29:15.171161Z",
     "updated_at": "2025-12-12T21:29:15.171170Z",
@@ -49,7 +49,7 @@ The response was updated to return all of the metadata.
         "mcp": {
             "openApiSchema": {
                 "s3": {
-                    "uri": "s3://agentcore-gateway-targets-openapi-specs-606279327502-us-east-1/testing-todos-three_openapi.json"
+                    "uri": "s3://agentcore-gateways-targets-openapi-specs-606279327502-us-east-1/testing-todos-three_openapi.json"
                 }
             }
         }
@@ -79,7 +79,7 @@ curl -X 'POST' \
   -H 'Content-Type: application/json' \
   -d '{
   "gateway_name": "TestMCPServerGateway",
-  "description": "A test sample gateway",
+  "description": "A test sample gateways",
   "auth_config": {
     "user_pool_id": "us-east-1_aaaaa",
     "client_id": "abcdefghijklmnopqrstuvwxyz",
@@ -126,9 +126,9 @@ Response
 {
   "status": "success",
   "tool_name": "nasa-mars-api",
-  "gateway_id": "mycreated-gateway-id123",
+  "gateway_id": "mycreated-gateways-id123",
   "openapi_spec_path": "openapi_specs/nasa-mars-api_openapi.json",
-  "message": "Tool 'nasa-mars-api' successfully created and registered on gateway mycreated-gateway-id123"
+  "message": "Tool 'nasa-mars-api' successfully created and registered on gateways mycreated-gateways-id123"
 }
 ```
 
@@ -138,7 +138,7 @@ curl --location 'http://localhost:8000/tools/from-api-info' \
 --header 'accept: application/json' \
 --header 'Content-Type: application/json' \
 --data '{
-  "gateway_id": "mycreated-gateway-id123",
+  "gateway_id": "mycreated-gateways-id123",
   "tool_name": "dummy-todos",
   "api_info": {
     "method": "GET",
@@ -153,9 +153,9 @@ Response
 {
     "status": "success",
     "tool_name": "dummy-todos",
-    "gateway_id": "mycreated-gateway-id123",
+    "gateway_id": "mycreated-gateways-id123",
     "openapi_spec_path": "openapi_specs/dummy-todos_openapi.json",
-    "message": "Tool 'dummy-todos' successfully created and registered on gateway mycreated-gateway-id123"
+    "message": "Tool 'dummy-todos' successfully created and registered on gateways mycreated-gateways-id123"
 }
 ```
 ![img_1.png](img_1.png)
@@ -187,9 +187,9 @@ Response
   "status": "DELETING",
   "target_id": "2RZDASF0LY",
   "gateway_id": "samplegatewaysecond-s8qkj5fs2n",
-  "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateway/samplegatewaysecond-s8qkj5fs2n",
+  "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:606279327502:gateways/samplegatewaysecond-s8qkj5fs2n",
   "status_reasons": null,
-  "message": "Tool '2RZDASF0LY' deletion initiated on gateway 'samplegatewaysecond-s8qkj5fs2n'"
+  "message": "Tool '2RZDASF0LY' deletion initiated on gateways 'samplegatewaysecond-s8qkj5fs2n'"
 }
 ```
 

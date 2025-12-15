@@ -65,7 +65,7 @@ Response
     "tool_name": "testing-todos",
     "gateway_id": "samplegatewaysecond-s8qkj5fs2n",
     "openapi_spec_path": "openapi_specs/testing-todos_openapi.json",
-    "message": "Tool 'testing-todos' successfully created and registered on gateway samplegatewaysecond-s8qkj5fs2n"
+    "message": "Tool 'testing-todos' successfully created and registered on gateways samplegatewaysecond-s8qkj5fs2n"
 }
 ```
 

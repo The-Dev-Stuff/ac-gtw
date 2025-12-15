@@ -1,5 +1,5 @@
 """
 services package
-Core business logic services for gateway and tool management.
+Core business logic services for gateways and tool management.
 """
 

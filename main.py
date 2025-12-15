@@ -1,6 +1,6 @@
 """
 main.py
-Orchestrates the full setup: authentication, gateway, and tools.
+Orchestrates the full setup: authentication, gateways, and tools.
 This file demonstrates how to use the modular setup scripts together.
 """
 import os
@@ -9,7 +9,7 @@ from gateway import setup_gateway
 from tools import add_tool_to_gateway
 
 # CONFIG: change these as needed
-# This file demonstrates creating auth,  a gateway, and adding a tool BUT there is also a FastAPI API in api/main.py that can be used
+# This file demonstrates creating auth,  a gateways, and adding a tool BUT there is also a FastAPI API in api/main.py that can be used
 # to create gateways and tools programmatically.
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 OPENAPI_PATH = "openapi_specs/nasa_mars_insights_openapi.json"
@@ -22,8 +22,8 @@ def main():
     """
     Full setup workflow:
     1. Setup authentication (one-time, reusable)
-    2. Setup gateway (creates IAM role and gateway, can be reused for multiple tools)
-    3. Add tool to gateway (can add multiple tools to same gateway)
+    2. Setup gateways (creates IAM role and gateways, can be reused for multiple tools)
+    3. Add tool to gateways (can add multiple tools to same gateways)
     """
 
     print("=" * 60)
@@ -32,7 +32,7 @@ def main():
     auth_config = setup_auth()
 
     # print("\n" + "=" * 60)
-    # print("STEP 2: Setting up gateway")
+    # print("STEP 2: Setting up gateways")
     # print("=" * 60)
     # gateway_info = setup_gateway(
     #     gateway_name=GATEWAY_NAME,
@@ -41,10 +41,10 @@ def main():
     # )
     #
     # print("\n" + "=" * 60)
-    # print("STEP 3: Adding NASA Mars tool to gateway")
+    # print("STEP 3: Adding NASA Mars tool to gateways")
     #
     # print("\n" + "=" * 60)
-    # print("STEP 3: Adding NASA Mars tool to gateway")
+    # print("STEP 3: Adding NASA Mars tool to gateways")
     # print("=" * 60)
     # response = add_tool_to_gateway(
     #     gateway_id=gateway_info["gateway_id"],

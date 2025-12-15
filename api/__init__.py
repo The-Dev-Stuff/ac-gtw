@@ -1,5 +1,5 @@
 """
-API package for managing gateway tools
+API package for managing gateways tools
 """
 from .main import app
 

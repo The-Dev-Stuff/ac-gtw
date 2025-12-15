@@ -11,10 +11,10 @@ from botocore.exceptions import ClientError
 
 # CONFIG: change these as needed
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-COGNITO_USER_POOL_NAME = "sample-agentcore-gateway-pool"
-RESOURCE_SERVER_ID = "sample-agentcore-gateway-id"
-RESOURCE_SERVER_NAME = "sample-agentcore-gateway-name"
-CLIENT_NAME = "sample-agentcore-gateway-client"
+COGNITO_USER_POOL_NAME = "sample-agentcore-gateways-pool"
+RESOURCE_SERVER_ID = "sample-agentcore-gateways-id"
+RESOURCE_SERVER_NAME = "sample-agentcore-gateways-name"
+CLIENT_NAME = "sample-agentcore-gateways-client"
 
 
 def get_or_create_user_pool(cognito_client, pool_name):
@@ -70,7 +70,7 @@ def get_or_create_m2m_client(cognito_client, user_pool_id, client_name, resource
         ClientName=client_name,
         GenerateSecret=True,
         AllowedOAuthFlows=["client_credentials"],
-        AllowedOAuthScopes=[f"{resource_server_id}/gateway:read", f"{resource_server_id}/gateway:write"],
+        AllowedOAuthScopes=[f"{resource_server_id}/gateways:read", f"{resource_server_id}/gateways:write"],
         AllowedOAuthFlowsUserPoolClient=True
     )
     client_id = resp["UserPoolClient"]["ClientId"]
@@ -101,7 +101,7 @@ def setup_auth():
     Creates/retrieves Cognito authentication infrastructure.
     This is a one-time operation and only necessary if new auth with Cognito needs to be setup.
 
-    Returns: dict with auth configuration needed for gateway setup
+    Returns: dict with auth configuration needed for gateways setup
     """
     session = boto3.Session(region_name=AWS_REGION)
     cognito = session.client("cognito-idp")
@@ -114,8 +114,8 @@ def setup_auth():
     # 2) Create/retrieve resource server with scopes
     print("Creating/retrieving resource server...")
     scopes = [
-        {"ScopeName": "gateway:read", "ScopeDescription": "Read access"},
-        {"ScopeName": "gateway:write", "ScopeDescription": "Write access"}
+        {"ScopeName": "gateways:read", "ScopeDescription": "Read access"},
+        {"ScopeName": "gateways:write", "ScopeDescription": "Write access"}
     ]
     get_or_create_resource_server(cognito, user_pool_id, RESOURCE_SERVER_ID, RESOURCE_SERVER_NAME, scopes)
 
