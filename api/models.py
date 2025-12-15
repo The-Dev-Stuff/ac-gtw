@@ -34,10 +34,6 @@ class HealthCheckResponse(BaseModel):
     message: str
     openapi_specs_bucket: Optional[str] = None
     aws_region: Optional[str] = None
-    openapi_specs_bucket: Optional[str] = None
-    aws_region: Optional[str] = None
-    openapi_specs_bucket: str
-    aws_region: str
 
 
 class CreateToolResponse(BaseModel):

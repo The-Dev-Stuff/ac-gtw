@@ -86,7 +86,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"gateway_name\": \"Production API Gateway\",\n  \"description\": \"Main production gateway for managing third-party APIs\",\n  \"auth_config\": {\n    \"client_id\": \"my-client-id-12345\",\n    \"discovery_url\": \"https://example.auth.com/.well-known/openid-configuration\"\n  }\n}"
+              "raw": "{\n  \"gateway_name\": \"ProductionAPIGateway\",\n  \"description\": \"Main production gateway for managing third-party APIs\",\n  \"auth_config\": {\n    \"client_id\": \"my-client-id-12345\",\n    \"discovery_url\": \"https://example.auth.com/.well-known/openid-configuration\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/gateways",
@@ -136,7 +136,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"gateway_name\": \"Public APIs Gateway\",\n  \"description\": \"Gateway for public APIs with no authentication\"\n}"
+              "raw": "{\n  \"gateway_name\": \"PublicAPIsGateway\",\n  \"description\": \"Gateway for public APIs with no authentication\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/gateways/no-auth",

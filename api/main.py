@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 
-from services.gateways.gateway_service import create_agentcore_gateway_role, create_gateway, update_gateway, get_gateway, list_gateways, delete_gateway
+from services.gateways.gateway_service import create_agentcore_gateway_role, create_gateway as create_gateway_service, update_gateway as update_gateway_service, get_gateway as get_gateway_service, list_gateways as list_gateways_service, delete_gateway as delete_gateway_service
 from services.s3.s3_service import upload_openapi_spec
 from services.tools.tools_service import create_gateway_target, update_gateway_target, delete_gateway_target, get_gateway_target, list_gateway_targets
 from services.credentials.credentials_service import create_or_get_api_key_credential_provider
@@ -23,7 +23,7 @@ from api.validations import validate_auth
 
 # CONFIG
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-OPENAPI_SPECS_BUCKET = os.environ.get("OPENAPI_SPECS_BUCKET")
+OPENAPI_SPECS_BUCKET = os.environ.get("OPENAPI_SPECS_BUCKET", "agentcore-gateway-openapi-specs-bucket")
 
 # Create FastAPI app
 app = FastAPI(
@@ -116,7 +116,7 @@ async def get_gateway(gateway_id: str):
         GetGatewayResponse with full gateway details
     """
     try:
-        response = get_gateway(gateway_id=gateway_id)
+        response = get_gateway_service(gateway_id=gateway_id)
 
         return GetGatewayResponse(
             status="success",
@@ -177,7 +177,7 @@ async def list_gateways(max_results: int = None, next_token: str = None):
                     detail="maxResults must be between 1 and 1000"
                 )
 
-        response = list_gateways(max_results=max_results, next_token=next_token)
+        response = list_gateways_service(max_results=max_results, next_token=next_token)
 
         # Transform items to match GatewaySummary model
         items = [
@@ -237,7 +237,7 @@ async def create_gateway(request: CreateGatewayRequest):
             "discovery_url": request.auth_config.discovery_url,
         }
         
-        gateway_info = create_gateway(
+        gateway_info = create_gateway_service(
             gateway_name=request.gateway_name,
             role_arn=role_arn,
             is_authenticated=True,
@@ -288,7 +288,7 @@ async def create_gateway_no_auth(request: CreateGatewayNoAuthRequest):
         role_arn = create_agentcore_gateway_role("sample-lambdagateway-role-demo")
 
         # Create or get gateways without auth
-        gateway_info = create_gateway(
+        gateway_info = create_gateway_service(
             gateway_name=request.gateway_name,
             role_arn=role_arn,
             is_authenticated=False,
@@ -355,7 +355,7 @@ async def update_gateway(
                 detail="protocol_type must be MCP"
             )
 
-        response = update_gateway(
+        response = update_gateway_service(
             gateway_id=gateway_id,
             name=name,
             protocol_type=protocol_type,
@@ -409,7 +409,7 @@ async def update_gateway(
 async def delete_gateway(gateway_id: str):
     """Delete an existing gateway"""
     try:
-        delete_gateway(gateway_id=gateway_id)
+        delete_gateway_service(gateway_id=gateway_id)
 
         return DeleteGatewayResponse(
             gateway_id=gateway_id,
@@ -531,6 +531,7 @@ async def list_tools(gateway_id: str, max_results: int = None, next_token: str =
 
 
 # Creates tool from uploaded OpenAPI spec file
+@app.post("/tools", response_model=CreateToolResponse)
 async def create_tool(
     gateway_id: str = Form(...),
     tool_name: str = Form(...),
