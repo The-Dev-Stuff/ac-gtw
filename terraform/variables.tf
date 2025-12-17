@@ -13,3 +13,13 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+variable "credentials_role_name" {
+  description = "Name of the credentials/credential provider role"
+  type        = string
+  default     = "test-agentcore-credentials-role-demo"
+}
+variable "s3_bucket_name" {
+  description = "Name of the S3 bucket for storing OpenAPI specs and tools"
+  type        = string
+  default     = "agentcore-gateway-specs"
+}
